@@ -88,7 +88,15 @@ const getLoadingTips = (code: string): string[] => {
   }
 };
 
-const shareUrl = 'https://remix-tastytrip-356020796948.asia-east1.run.app';
+/**
+ * 공유할 주소.
+ *
+ * 예전에는 주소를 코드에 적어 두었는데, 배포처를 옮기자 QR 이 가리키는 곳과
+ * 실제 사이트가 달라졌다. 지금 열려 있는 주소를 그대로 쓰면 어디에 배포하든
+ * 항상 맞는다.
+ */
+const shareUrl =
+  typeof window !== 'undefined' ? window.location.origin : 'https://tastytrip.onrender.com';
 
 function AppShell() {
   const { user, profile, companions, isLoggedIn } = useAuth();
