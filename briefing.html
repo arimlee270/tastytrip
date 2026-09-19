@@ -1,0 +1,912 @@
+<title>TastyTrip 배포 전 브리핑</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* ─── 팔레트 : 기술 문서용 페트롤 블루 + 청회색 중립 ─── */
+  :root {
+    --ground:      #F2F4F5;
+    --surface:     #FFFFFF;
+    --surface-alt: #E9EDEF;
+    --line:        #D3DADD;
+    --line-soft:   #E4E9EB;
+    --ink:         #14191C;
+    --ink-mid:     #4A565C;
+    --ink-soft:    #6E7C83;
+    --accent:      #0B5563;
+    --accent-soft: #DCEAED;
+    --accent-line: #9EC2C9;
+    --done:        #1F6B47;
+    --done-bg:     #DDEDE4;
+    --partial:     #8A5A0B;
+    --partial-bg:  #F6E8D2;
+    --wait:        #5B646A;
+    --wait-bg:     #E3E7E9;
+    --alert:       #9A2B24;
+    --alert-bg:    #F6E1DF;
+
+    --step: clamp(0.95rem, 0.9rem + 0.2vw, 1.02rem);
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #101416;
+      --surface:     #171D20;
+      --surface-alt: #1F272B;
+      --line:        #2E383D;
+      --line-soft:   #232C31;
+      --ink:         #E8EDEF;
+      --ink-mid:     #A9B6BC;
+      --ink-soft:    #7F8D94;
+      --accent:      #6FC5D4;
+      --accent-soft: #16323A;
+      --accent-line: #2C5A66;
+      --done:        #6FC79A;
+      --done-bg:     #14301F;
+      --partial:     #E0AC5C;
+      --partial-bg:  #33260F;
+      --wait:        #97A3A9;
+      --wait-bg:     #232B2F;
+      --alert:       #EE9188;
+      --alert-bg:    #38191A;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #101416;
+    --surface:     #171D20;
+    --surface-alt: #1F272B;
+    --line:        #2E383D;
+    --line-soft:   #232C31;
+    --ink:         #E8EDEF;
+    --ink-mid:     #A9B6BC;
+    --ink-soft:    #7F8D94;
+    --accent:      #6FC5D4;
+    --accent-soft: #16323A;
+    --accent-line: #2C5A66;
+    --done:        #6FC79A;
+    --done-bg:     #14301F;
+    --partial:     #E0AC5C;
+    --partial-bg:  #33260F;
+    --wait:        #97A3A9;
+    --wait-bg:     #232B2F;
+    --alert:       #EE9188;
+    --alert-bg:    #38191A;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+    font-size: var(--step);
+    font-weight: 400;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ─── 레이아웃 ─── */
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 clamp(1.1rem, 4vw, 2.75rem) 6rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0 3.5rem;
+  }
+
+  @media (min-width: 1000px) {
+    .shell { grid-template-columns: 200px minmax(0, 1fr); }
+    .rail  { grid-column: 1; grid-row: 2; }
+    main   { grid-column: 2; grid-row: 2; }
+    header { grid-column: 1 / -1; grid-row: 1; }
+  }
+
+  /* ─── 머리말 ─── */
+  header {
+    padding: clamp(2.75rem, 7vw, 5rem) 0 2.25rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 2.75rem;
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--accent-line);
+  }
+
+  h1 {
+    font-size: clamp(1.9rem, 1.2rem + 3vw, 3.1rem);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+    margin: 0 0 1.15rem;
+  }
+
+  .lede {
+    font-size: clamp(1.02rem, 0.98rem + 0.35vw, 1.2rem);
+    font-weight: 300;
+    color: var(--ink-mid);
+    max-width: 60ch;
+    line-height: 1.7;
+    margin: 0 0 1.9rem;
+  }
+  .lede strong { font-weight: 600; color: var(--ink); }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.74rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+  }
+
+  /* ─── 좌측 목차 ─── */
+  .rail { display: none; }
+  @media (min-width: 1000px) {
+    .rail { display: block; }
+    .rail nav {
+      position: sticky;
+      top: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      border-left: 1px solid var(--line);
+    }
+    .rail a {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.73rem;
+      letter-spacing: 0.01em;
+      color: var(--ink-soft);
+      text-decoration: none;
+      padding: 0.42rem 0 0.42rem 0.95rem;
+      margin-left: -1px;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .rail a:hover, .rail a:focus-visible {
+      color: var(--accent);
+      border-left-color: var(--accent);
+    }
+  }
+
+  /* ─── 수치 밴드 ─── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 3.5rem;
+  }
+  .stat {
+    background: var(--surface);
+    padding: 1.05rem 1.1rem 1.15rem;
+  }
+  .stat b {
+    display: block;
+    font-family: "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .stat b small { font-size: 0.78rem; font-weight: 500; color: var(--ink-soft); margin-left: 0.1rem; }
+  .stat span {
+    display: block;
+    font-size: 0.73rem;
+    color: var(--ink-soft);
+    margin-top: 0.4rem;
+    line-height: 1.4;
+  }
+
+  /* ─── 섹션 ─── */
+  section { margin-bottom: 3.75rem; scroll-margin-top: 1.5rem; }
+
+  h2 {
+    font-size: clamp(1.18rem, 1.05rem + 0.5vw, 1.42rem);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.3;
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+  h2 .num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+  }
+
+  .section-note {
+    color: var(--ink-mid);
+    font-size: 0.9rem;
+    font-weight: 300;
+    max-width: 62ch;
+    margin: 0 0 1.6rem;
+    padding-left: calc(0.72rem + 1.6rem);
+  }
+  @media (max-width: 620px) { .section-note { padding-left: 0; } }
+
+  h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 2.25rem 0 0.9rem;
+    letter-spacing: -0.005em;
+  }
+  h3:first-child { margin-top: 0; }
+
+  p { margin: 0 0 1rem; max-width: 66ch; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ─── 상태 칩 ─── */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.67rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 0.16rem 0.5rem;
+    border-radius: 2px;
+    white-space: nowrap;
+    line-height: 1.5;
+  }
+  .chip-done    { background: var(--done-bg);    color: var(--done); }
+  .chip-partial { background: var(--partial-bg); color: var(--partial); }
+  .chip-wait    { background: var(--wait-bg);    color: var(--wait); }
+  .chip-alert   { background: var(--alert-bg);   color: var(--alert); }
+
+  /* ─── Phase 목록 ─── */
+  .phases {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .phase {
+    background: var(--surface);
+    padding: 1.1rem 1.25rem;
+    display: grid;
+    grid-template-columns: 4.6rem minmax(0, 1fr) auto;
+    gap: 0.35rem 1rem;
+    align-items: baseline;
+  }
+  @media (max-width: 620px) {
+    .phase { grid-template-columns: 1fr auto; }
+    .phase .pnum { grid-column: 1; }
+    .phase .pbody { grid-column: 1 / -1; }
+  }
+  .pnum {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+  .ptitle { font-weight: 600; font-size: 0.95rem; }
+  .pbody {
+    grid-column: 2 / -1;
+    color: var(--ink-mid);
+    font-size: 0.85rem;
+    font-weight: 300;
+    line-height: 1.65;
+  }
+  @media (max-width: 620px) { .pbody { grid-column: 1 / -1; } }
+  .pbody ul { margin: 0.4rem 0 0; padding-left: 1.05rem; }
+  .pbody li { margin-bottom: 0.22rem; }
+  .pbody li::marker { color: var(--ink-soft); }
+
+  /* ─── 표 ─── */
+  .tablewrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--surface);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    min-width: 460px;
+  }
+  thead th {
+    text-align: left;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.67rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 0.7rem 1rem;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 0.72rem 1rem;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+    line-height: 1.6;
+    color: var(--ink-mid);
+  }
+  tbody td:first-child { color: var(--ink); font-weight: 500; }
+  tbody tr:last-child td { border-bottom: none; }
+  td .mono { font-size: 0.8rem; }
+
+  /* ─── 강조 블록 : 회의 결정사항 ─── */
+  .decide {
+    border: 1px solid var(--accent-line);
+    border-radius: 3px;
+    background: var(--surface);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .decide-head {
+    background: var(--accent-soft);
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--accent-line);
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+  }
+  .decide-head b { font-size: 0.95rem; font-weight: 600; }
+  .decide-head span {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.68rem;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+  }
+  .decide-body { padding: 1.15rem 1.25rem; }
+  .decide-body > p:first-child { margin-top: 0; }
+  .decide-body .tablewrap { border: none; border-radius: 0; }
+  .decide-body table { min-width: 380px; }
+  .decide-body thead th { background: transparent; padding-top: 0; }
+
+  /* ─── 체크리스트 ─── */
+  .checks {
+    counter-reset: chk;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .checks li {
+    counter-increment: chk;
+    background: var(--surface);
+    padding: 0.85rem 1.15rem 0.85rem 3.1rem;
+    position: relative;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  .checks li::before {
+    content: counter(chk, decimal-leading-zero);
+    position: absolute;
+    left: 1.15rem;
+    top: 0.85rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .checks li b { font-weight: 600; }
+  .checks li em {
+    display: block;
+    font-style: normal;
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+    font-weight: 300;
+    margin-top: 0.15rem;
+  }
+  .checks li.key { background: var(--accent-soft); }
+  .checks li.key::before { color: var(--accent); }
+
+  /* ─── 코드 예시 ─── */
+  pre {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.76rem;
+    line-height: 1.85;
+    background: var(--surface-alt);
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    padding: 0.95rem 1.1rem;
+    overflow-x: auto;
+    margin: 0 0 1.2rem;
+    color: var(--ink-mid);
+  }
+  pre b { color: var(--ink); font-weight: 600; }
+
+  /* ─── 순서 타임라인 ─── */
+  .flow {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: fl;
+  }
+  .flow li {
+    counter-increment: fl;
+    position: relative;
+    padding: 0 0 1.25rem 2.4rem;
+    border-left: 1px solid var(--line);
+    margin-left: 0.55rem;
+  }
+  .flow li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .flow li::before {
+    content: counter(fl);
+    position: absolute;
+    left: -0.56rem;
+    top: 0;
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--accent-line);
+    color: var(--accent);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.62rem;
+    font-weight: 600;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+  }
+  .flow b { font-weight: 600; font-size: 0.92rem; }
+  .flow span {
+    display: block;
+    color: var(--ink-soft);
+    font-size: 0.82rem;
+    font-weight: 300;
+    margin-top: 0.1rem;
+  }
+
+  /* ─── 문단 리스트 ─── */
+  .bullets { margin: 0 0 1rem; padding-left: 1.15rem; max-width: 66ch; }
+  .bullets li { margin-bottom: 0.42rem; color: var(--ink-mid); }
+  .bullets li::marker { color: var(--accent); }
+  .bullets strong { color: var(--ink); font-weight: 600; }
+
+  .callout {
+    border-left: 2px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 0.9rem 1.15rem;
+    border-radius: 0 3px 3px 0;
+    font-size: 0.86rem;
+    color: var(--ink-mid);
+    margin: 1.3rem 0 0;
+    max-width: 68ch;
+  }
+  .callout strong { color: var(--ink); font-weight: 600; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 1.4rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.03em;
+  }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="shell">
+
+  <header>
+    <p class="eyebrow">개발 진행 브리핑 · 2026.09.12</p>
+    <h1>TastyTrip 배포 전 브리핑</h1>
+    <p class="lede">
+      개발계획서 <strong>Phase 1~8의 기능 개발이 완료</strong>되어 현재 배포 직전 단계입니다.
+      남은 것은 배포 방식 결정, 실사용 현장 테스트, 그리고 승인 대기 중인 공공데이터 2종입니다.
+    </p>
+    <div class="meta">
+      <span>기준 문서 · 추가기능 상세 개발계획서 최종본</span>
+      <span>범위 · Phase 1–8 완료 / Phase 9 진행 중</span>
+    </div>
+  </header>
+
+  <aside class="rail">
+    <nav>
+      <a href="#s1">01 &nbsp;현재 수치</a>
+      <a href="#s2">02 &nbsp;Phase별 진척</a>
+      <a href="#s3">03 &nbsp;이번 회차 수정</a>
+      <a href="#s4">04 &nbsp;보안·비용 방어</a>
+      <a href="#s5">05 &nbsp;회의 결정사항</a>
+      <a href="#s6">06 &nbsp;배포 실무</a>
+      <a href="#s7">07 &nbsp;현장 테스트</a>
+      <a href="#s8">08 &nbsp;잔여 기능</a>
+      <a href="#s9">09 &nbsp;진행 순서</a>
+    </nav>
+  </aside>
+
+  <main>
+
+    <section id="s1">
+      <h2><span class="num">01</span>현재 수치</h2>
+      <div class="stats">
+        <div class="stat"><b>12,354<small>줄</small></b><span>소스 코드 (53개 파일)</span></div>
+        <div class="stat"><b>27<small>개</small></b><span>백엔드 API<br>계획서 13장 전부</span></div>
+        <div class="stat"><b>11<small>개</small></b><span>DB 테이블<br>계획서 11장 전부</span></div>
+        <div class="stat"><b>100<small>종</small></b><span>표준 음식 데이터<br>별칭 498개</span></div>
+        <div class="stat"><b>244<small>건</small></b><span>영양 참조 데이터<br>식약처 130 · USDA 14</span></div>
+        <div class="stat"><b>211<small>곳</small></b><span>수집된 식당</span></div>
+        <div class="stat"><b>7<small>개</small></b><span>지원 언어<br>한·영·일·중·불·태·벵골</span></div>
+      </div>
+    </section>
+
+    <section id="s2">
+      <h2><span class="num">02</span>Phase별 진척</h2>
+      <p class="section-note">계획서 15장 단계별 개발 일정 기준. Phase 9(배포·테스트)가 현재 지점입니다.</p>
+
+      <div class="phases">
+
+        <div class="phase">
+          <span class="pnum">PHASE 1</span>
+          <span class="ptitle">기존 코드 정리</span>
+          <span class="chip chip-done">완료</span>
+          <div class="pbody">화면과 API 코드 분리, 공통 타입 정의, 환경변수 일원화, 오류 처리 통일</div>
+        </div>
+
+        <div class="phase">
+          <span class="pnum">PHASE 2</span>
+          <span class="ptitle">로그인과 DB</span>
+          <span class="chip chip-done">완료</span>
+          <div class="pbody">
+            구글 로그인 구현(서버에서 구글 공개키로 토큰 검증), users·프로필·동행인 테이블,
+            기존 localStorage 데이터 계정 이전.
+            <ul><li>DB를 <b>Turso 클라우드로 이전 완료</b> — 배포 시 데이터 유실 방지</li></ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <span class="pnum">PHASE 3</span>
+          <span class="ptitle">지도와 식당</span>
+          <span class="chip chip-done">완료</span>
+          <div class="pbody">
+            Google Places API 연동, 주변 음식점 검색, Place ID 기준 식별, 식당 상세 화면.
+            <ul><li>지도 한도 초과 시 데모 데이터로 자동 전환 — 장애 시에도 화면이 깨지지 않음</li></ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <span class="pnum">PHASE 4</span>
+          <span class="ptitle">식당별 메뉴</span>
+          <span class="chip chip-done">완료</span>
+          <div class="pbody">
+            메뉴 테이블·조회, 미등록 메뉴 촬영 등록, 분석 결과 저장, 중복 처리.
+            <ul><li><b>사용자가 늘수록 가게별 메뉴·알레르기 정보가 축적되는 구조</b></li></ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <span class="pnum">PHASE 5</span>
+          <span class="ptitle">공개 데이터</span>
+          <span class="chip chip-partial">부분 완료</span>
+          <div class="pbody">
+            식약처 식품영양성분 DB · USDA FoodData Central 연동, 정규화 및 캐시 구축 완료.
+            <ul><li>식약처 <b>푸드QR</b> — 활용신청 승인 대기</li>
+            <li>식약처 <b>제품 LOT 원자재</b> — 활용신청 승인 대기</li></ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <span class="pnum">PHASE 6</span>
+          <span class="ptitle">AI 정확도 향상</span>
+          <span class="chip chip-done">완료</span>
+          <div class="pbody">
+            공개 데이터를 AI 분석 근거로 주입하는 RAG 구조, 구조화 JSON 출력,
+            칼로리 범위 계산, 알레르기 교차 검증, 재료 기반 할랄·베지테리언 판정.
+            <ul><li><b>DB 우선 조회</b> — 이미 분석된 음식은 AI를 다시 호출하지 않음(비용 절감)</li></ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <span class="pnum">PHASE 7</span>
+          <span class="ptitle">추천</span>
+          <span class="chip chip-done">완료</span>
+          <div class="pbody">
+            안전 필터, 추천 점수(안전 40% · 식단 20% · 거리 15% · 다양성 10% · 신뢰도 10% · 평점 5%),
+            추천 이유 표시, 지도 추천 패널
+          </div>
+        </div>
+
+        <div class="phase">
+          <span class="pnum">PHASE 8</span>
+          <span class="ptitle">사용자 제보</span>
+          <span class="chip chip-partial">부분 완료</span>
+          <div class="pbody">
+            오류 신고 접수, 검증 상태, 신뢰도 재계산, 제보 누적 반영(있음 1건 / 없음 2건 이상).
+            <ul><li>증거 이미지 업로드 — 서버는 준비 완료, 화면만 미구현</li></ul>
+          </div>
+        </div>
+
+        <div class="phase">
+          <span class="pnum">PHASE 9</span>
+          <span class="ptitle">테스트 및 웹 배포</span>
+          <span class="chip chip-alert">현재 지점</span>
+          <div class="pbody">배포 방식 결정 대기 중. 상세는 05~07번 항목 참조</div>
+        </div>
+
+        <div class="phase">
+          <span class="pnum">PHASE 10</span>
+          <span class="ptitle">모바일 앱 전환</span>
+          <span class="chip chip-wait">미착수</span>
+          <div class="pbody">최종 형태 결정에 따라 진행 여부가 갈림</div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="s3">
+      <h2><span class="num">03</span>이번 회차 수정</h2>
+      <p class="section-note">지적하신 사용성 문제 5건과, 원인 규명이 필요했던 다국어 문제를 처리했습니다.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>문제</th><th>조치</th></tr></thead>
+          <tbody>
+            <tr><td>할랄 미선택자에게 할랄 경고 표시</td><td>저장된 경고 재사용을 제거하고, 조회 시점 사용자 조건으로만 재계산</td></tr>
+            <tr><td>하단 내비게이션이 화면 밖으로 밀림</td><td>고정 높이(844px)를 실제 화면 높이 기준으로 변경</td></tr>
+            <tr><td>"구글 지도에서 보기" 링크 중복</td><td>메뉴 없음 안내 쪽 링크 삭제</td></tr>
+            <tr><td>게스트 모드에 저장 버튼 없음</td><td>실제로는 자동 저장되고 있었음 — 자동 저장 안내와 로그인 유도 추가</td></tr>
+            <tr><td>도보 시간이 실제보다 짧게 표시</td><td>우회 보정 1.3배 적용, 문구를 "약 N분 (직선거리 기준 추정)"으로 변경. <b>추가 비용 없음</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>식당 이름 다국어 혼재 — 원인 규명</h3>
+      <p>
+        구글에 한국어를 요청해도 <b>같은 문자열을 돌려주는 것을 확인</b>했습니다.
+        가게 주인이 검색 노출을 위해 이름 자체를 여러 언어로 등록해 둔 경우로, API 설정으로는 해결되지 않습니다.
+        표시 언어로 <b>읽을 수 없는 문자가 섞여 있을 때만</b> 잘라내는 방식으로 처리했습니다.
+      </p>
+<pre>Mongvely … | 焼き肉 焼肉 | 烤肉 l 무한리필 몽블리 명동점  →  <b>무한리필 몽블리 명동점</b>
+โตซาลาเปา Chinese Steamed Buns 包子                    →  <b>Chinese Steamed Buns</b>
+FLIPPER'S 시부야                                       →  <b>그대로 유지</b>  (브랜드명 보존)</pre>
+      <p>기존 저장분 184건 중 12건을 정리했습니다.</p>
+    </section>
+
+    <section id="s4">
+      <h2><span class="num">04</span>보안 · 비용 방어</h2>
+      <p class="section-note">배포 시 API 키 유출로 요금이 청구될 위험을 발견하여 조치했습니다. 모든 항목은 실제 동작으로 검증했습니다.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>발견된 위험</th><th>조치</th><th>검증 결과</th></tr></thead>
+          <tbody>
+            <tr><td>유료 검색용 지도 키가 방문자 전원에게 노출</td><td>브라우저용 / 서버용 키 분리</td><td><span class="chip chip-done">서버 키 노출 없음</span></td></tr>
+            <tr><td>식당 사진 주소에 API 키 포함</td><td>서버 경유 방식으로 변경</td><td><span class="chip chip-done">키 미포함</span></td></tr>
+            <tr><td>이미지 검색 키가 빌드 파일에 포함</td><td>서버 경유 방식으로 변경</td><td><span class="chip chip-done">빌드 내 키 0건</span></td></tr>
+            <tr><td>메뉴 분석 API에 호출 제한 없음 (AI 요금)</td><td>분당 20회 제한</td><td><span class="chip chip-done">25회 중 5회 차단</span></td></tr>
+            <tr><td>관리자 API에 인증 없음 (공공데이터 대량 호출)</td><td>토큰 인증 추가</td><td><span class="chip chip-done">운영 모드 차단</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <strong>현재 요금 위험은 없습니다.</strong> 구글 클라우드 프로젝트에 결제 수단이 등록되어 있지 않아,
+        현시점에서는 요금이 청구될 수 없는 상태입니다. 다만 <strong>카드를 등록하는 순간 이 안전망이 사라지므로,
+        등록 직전에 반드시 할당량 상한을 먼저 걸어야 합니다.</strong>
+      </div>
+    </section>
+
+    <section id="s5">
+      <h2><span class="num">05</span>회의 결정사항</h2>
+      <p class="section-note">아래 세 가지가 정해져야 다음 작업으로 넘어갈 수 있습니다.</p>
+
+      <div class="decide">
+        <div class="decide-head"><span>결정 01</span><b>배포 방식</b></div>
+        <div class="decide-body">
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>선택지</th><th>비용</th><th>카드 등록</th><th>작업량</th></tr></thead>
+              <tbody>
+                <tr><td>Cloud Run</td><td>무료 한도 내 0원</td><td><span class="chip chip-alert">필요</span></td><td>보통</td></tr>
+                <tr><td>Vercel</td><td>무료</td><td><span class="chip chip-done">불필요</span></td><td>서버 코드 일부 개조</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top:1rem;font-size:0.86rem;color:var(--ink-mid)">
+            이미 지도·로그인을 Google Cloud에서 사용 중이라 계정 일원화 측면은 Cloud Run이 유리합니다.
+            카드 등록을 피하려면 Vercel입니다.
+          </p>
+        </div>
+      </div>
+
+      <div class="decide">
+        <div class="decide-head"><span>결정 02</span><b>최종 형태</b></div>
+        <div class="decide-body">
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>선택지</th><th>내용</th><th>추가 작업</th></tr></thead>
+              <tbody>
+                <tr><td>PWA (홈 화면 설치형 웹)</td><td>배포하면 사실상 완성. 스토어 심사 없음</td><td>거의 없음</td></tr>
+                <tr><td>네이티브 앱 (Phase 10)</td><td>React Native / Flutter로 화면 재구현</td><td>큼</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top:1rem;font-size:0.86rem;color:var(--ink-mid)">
+            현재 UI가 이미 모바일 크기 기준으로 제작되어 PWA 전환 비용이 낮습니다.
+            <b>어느 쪽을 택하든 서버 배포는 반드시 선행됩니다</b> — 앱도 이 서버를 사용하기 때문입니다.
+          </p>
+        </div>
+      </div>
+
+      <div class="decide">
+        <div class="decide-head"><span>결정 03</span><b>도메인</b></div>
+        <div class="decide-body">
+          <p style="font-size:0.88rem">
+            Cloud Run 기본 주소(무료)를 쓸지, 별도 도메인을 구매할지 결정이 필요합니다.
+            한 번 정한 뒤 변경하면 구글 로그인을 다시 설정해야 하므로 고정을 권장합니다.
+          </p>
+          <p style="font-size:0.88rem;margin-bottom:0">
+            <b>현재 구글 로그인이 되지 않는 원인이기도 합니다.</b>
+            임시 테스트 주소가 재시작마다 바뀌어 승인 주소로 등록할 수 없는 상태입니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="s6">
+      <h2><span class="num">06</span>배포 실무</h2>
+
+      <h3>배포 전</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>작업</th><th>담당</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>깃 저장소 분리</td><td>개발</td><td>현재 저장소 루트가 바탕화면 전체 — 그대로 올리면 개인 파일까지 업로드됨</td></tr>
+            <tr><td>배포 설정 파일 작성</td><td>개발</td><td>배포처 결정 후</td></tr>
+            <tr><td>API 할당량 상한 설정</td><td>운영</td><td><b>카드 등록 직전 필수</b> — 요금 방어의 핵심</td></tr>
+            <tr><td>예산 알림 설정</td><td>운영</td><td>알림만 하고 차단은 못 하므로 보조 수단</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>배포 직후</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>작업</th><th>효과</th></tr></thead>
+          <tbody>
+            <tr><td>브라우저 키에 도메인 제한 등록</td><td>키 도용 방지</td></tr>
+            <tr><td>OAuth 승인 도메인 등록</td><td><b>구글 로그인 복구</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="s7">
+      <h2><span class="num">07</span>현장 테스트</h2>
+      <p class="section-note">
+        계획서 17장 기준. 실제 식당에서 직접 검증이 필요합니다.
+        준비물은 스마트폰과 <b>서로 다른 알레르기·식단 조건을 설정한 계정 2개 이상</b>입니다.
+      </p>
+
+      <h3>실사용 시나리오</h3>
+      <ol class="checks">
+        <li><b>식당 앞에서 지도 검색</b><em>실제 위치의 식당이 뜨는가, 거리 표시가 맞는가</em></li>
+        <li><b>해당 식당 선택</b><em>이름·평점·주소가 정확한가, 이름이 설정 언어로 나오는가</em></li>
+        <li><b>메뉴판 촬영 후 분석</b><em>메뉴명을 제대로 읽는가, 몇 초 걸리는가</em></li>
+        <li><b>분석 결과 확인</b><em>재료·알레르기·칼로리가 실제와 맞는가</em></li>
+        <li><b>식당에 메뉴 등록</b><em>등록 후 다시 들어갔을 때 저장돼 있는가</em></li>
+        <li class="key"><b>다른 기기로 같은 식당 조회</b><em>등록한 메뉴가 남에게도 보이는가 — 서비스의 핵심 전제</em></li>
+        <li class="key"><b>다른 조건 계정으로 조회</b><em>그 사람 조건에 맞는 경고가 나오는가 — 이번에 고친 문제의 검증</em></li>
+        <li><b>실제 성분 확인 후 오류 신고</b><em>신고가 접수되고 신뢰도에 반영되는가</em></li>
+        <li><b>같은 메뉴 재촬영</b><em>AI를 다시 부르지 않고 저장된 결과를 쓰는가 — 비용 절감 검증</em></li>
+        <li><b>추천 목록 확인</b><em>추천 이유가 납득 가능한가</em></li>
+      </ol>
+
+      <h3>데이터 테스트 <span class="chip chip-wait">계획서 17.2</span></h3>
+      <ul class="bullets">
+        <li>메뉴명 오타 / 손글씨 메뉴판 / 흐린 사진</li>
+        <li>현지어만 있는 다국어 메뉴판</li>
+        <li>같은 음식의 다른 표기 (비빔밥 / 비빔 밥 / Bibimbap)</li>
+        <li>공개 데이터에 없는 현지 음식</li>
+      </ul>
+
+      <h3>안전 테스트 <span class="chip chip-alert">최우선</span></h3>
+      <ul class="bullets">
+        <li>설정한 알레르기와 표시되는 경고가 <strong>정확히 일치</strong>하는가</li>
+        <li>데이터가 없을 때 단정적으로 "안전하다"고 말하지 않는가</li>
+        <li>심각한 알레르기 조건에서 확인 문구가 나오는가</li>
+        <li>공식 데이터와 AI 추정이 충돌할 때 어느 쪽을 따르는가</li>
+      </ul>
+
+      <div class="callout">
+        <strong>안전 테스트에 가장 많은 시간을 배정할 것을 권장합니다.</strong>
+        알레르기 정보의 정확도는 서비스 신뢰와 직결됩니다.
+        실패한 케이스는 <strong>메뉴판 사진과 화면 캡처, 분석 소요 시간</strong>을 함께 기록해 주세요.
+      </div>
+    </section>
+
+    <section id="s8">
+      <h2><span class="num">08</span>잔여 기능</h2>
+      <p class="section-note">배포 후 순차 진행 가능한 항목입니다. 배포를 막지 않습니다.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>항목</th><th>계획서</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td>신고 증거 이미지 업로드 UI</td><td>Phase 8</td><td>서버 준비 완료, 화면만 필요</td></tr>
+            <tr><td>신규 화면 다국어 5종 (일·중·불·태·벵골)</td><td>—</td><td>현재 영어로 대체 표시</td></tr>
+            <tr><td>공개데이터 정기 동기화</td><td>7.5</td><td>배포 후 스케줄러 연결</td></tr>
+            <tr><td>식약처 푸드QR</td><td>6.3</td><td><span class="chip chip-wait">활용신청 승인 대기</span></td></tr>
+            <tr><td>식약처 제품 LOT</td><td>6.5</td><td><span class="chip chip-wait">활용신청 승인 대기</span></td></tr>
+            <tr><td>관광·음식점 POI 데이터</td><td>6.7</td><td>미착수 (추천 인기도 보완용)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="s9">
+      <h2><span class="num">09</span>진행 순서</h2>
+      <ol class="flow">
+        <li><b>회의 결정</b><span>배포 방식 · 최종 형태 · 도메인</span></li>
+        <li><b>배포 준비</b><span>깃 저장소 정리, 배포 설정 파일 작성</span></li>
+        <li><b>할당량 상한</b><span>카드 등록이 필요한 경우 등록 직전에 반드시</span></li>
+        <li><b>배포</b><span>고정 주소 확보</span></li>
+        <li><b>콘솔 마무리</b><span>도메인 제한, OAuth 등록 → 구글 로그인 복구</span></li>
+        <li><b>현장 테스트</b><span>07번 시나리오 수행</span></li>
+        <li><b>수정 및 재배포</b></li>
+        <li><b>잔여 기능</b><span>증거 이미지, 다국어, 정기 동기화</span></li>
+      </ol>
+
+      <h3>회의에서 논의할 것</h3>
+      <ul class="bullets">
+        <li><strong>배포 방식</strong> — Cloud Run(카드 필요) vs Vercel(카드 불필요)</li>
+        <li><strong>최종 형태</strong> — PWA로 충분한가, 스토어 앱까지 갈 것인가</li>
+        <li><strong>도메인</strong> — 기본 주소 사용 vs 별도 구매</li>
+        <li><strong>현장 테스트 일정과 인원</strong> — 최소 2명, 조건이 다른 계정 필요</li>
+        <li><strong>푸드QR · 제품LOT 활용신청</strong> 진행 상황 확인</li>
+        <li><strong>개인정보처리방침 · 이용약관</strong> 준비 주체 (스토어 앱으로 갈 경우 필수)</li>
+      </ul>
+    </section>
+
+    <footer>TastyTrip · 개발계획서 대비 진척 브리핑 · 2026.09.12</footer>
+
+  </main>
+</div>

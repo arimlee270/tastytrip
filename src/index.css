@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  
+  --color-primary: #f05a32;
+  --color-primary2: #ff7b4f;
+  --color-ink: #241815;
+  --color-muted-trip: #8b746c;
+  --color-bg-trip: #fff8f3;
+  --color-card-trip: #ffffff;
+  --color-line-trip: #f0ddd4;
+  --color-soft-trip: #fff0e8;
+  --color-safe-trip: #15844b;
+  --color-warn-trip: #9a6500;
+  --color-danger-trip: #d83b2f;
+}
+
+/* Custom premium styling touch-ups */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/*
+ * 지도 핀 위에 뜨는 가게 이름표.
+ * 구글이 만든 라벨 요소에 이 클래스를 붙여, 지도 위에서도 글자가 묻히지 않도록
+ * 흰 배경과 테두리를 준다.
+ */
+.map-pin-label {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 9999px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
+  letter-spacing: -0.01em;
+}

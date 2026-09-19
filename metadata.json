@@ -1,0 +1,10 @@
+{
+  "name": "Remix: TastyTrip",
+  "description": "Global Food Safety \u0026 Menu Analyzer with local travel guides, multi-member allergy cross-referencing, and customized translation/pronunciation dining instructions.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
