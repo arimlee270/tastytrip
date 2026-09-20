@@ -490,18 +490,29 @@ export const runFreeAnalysis = async (input: RunAnalysisInput): Promise<AnalyzeM
    * 캐시를 뒤지면, 이미 분석해 둔 메뉴는 무거운 분석을 다시 돌리지 않아도 된다.
    * 전부 저장돼 있으면 두 번째 호출은 아예 생략된다.
    */
-  let namesToCheck = typedNames;
+  /*
+   * 사진이 들어왔으면 답은 오직 그 사진 안에 있다.
+   *
+   * 예전에는 사진 읽기에 실패하면 사용자가 앞서 입력해 둔 검색어로 되돌아갔다.
+   * 그래서 일본 메뉴판을 찍었는데 예전에 검색했던 '팟타이'가 결과로 나왔다.
+   * 메뉴판에 없는 음식을 보여주는 것은 알레르기 앱에서 그냥 틀린 정보다.
+   * 읽기에 실패하면 빈 목록으로 두고, 아래에서 사진 전체를 분석하게 한다.
+   */
+  let namesToCheck: string[] = [];
   if (input.image) {
     try {
       const read = await extractMenuNames(input.image);
+      namesToCheck = read;
       if (read.length > 0) {
-        namesToCheck = read;
         console.log(`[analyze] 사진에서 메뉴 ${read.length}개를 읽었습니다: ${read.slice(0, 5).join(', ')}`);
+      } else {
+        console.warn('[analyze] 사진에서 메뉴 이름을 읽지 못했습니다. 사진 전체를 분석합니다.');
       }
     } catch (e) {
-      // 이름 읽기에 실패해도 아래의 전체 분석으로 진행하면 된다.
-      console.warn('[analyze] 사진에서 메뉴 이름을 읽지 못했습니다:', (e as Error).message);
+      console.warn('[analyze] 메뉴 이름 읽기 실패:', (e as Error).message);
     }
+  } else {
+    namesToCheck = typedNames;
   }
 
   if (namesToCheck.length > 0) {
@@ -555,8 +566,13 @@ export const runFreeAnalysis = async (input: RunAnalysisInput): Promise<AnalyzeM
     }
   }
 
-  // ── 2) 모르는 메뉴만 AI 에 묻는다.
-  const askNames = unknownNames.length > 0 ? unknownNames.join(', ') : input.menuText;
+  /*
+   * ── 2) 모르는 메뉴만 AI 에 묻는다.
+   *
+   * 사진이 있을 때는 예전에 입력해 둔 검색어를 절대 섞지 않는다.
+   * 섞으면 메뉴판에 없는 음식이 결과에 끼어든다.
+   */
+  const askNames = unknownNames.length > 0 ? unknownNames.join(', ') : input.image ? undefined : input.menuText;
 
   // 공개 데이터 근거를 프롬프트에 넣는다. (계획서 8.1)
   /*

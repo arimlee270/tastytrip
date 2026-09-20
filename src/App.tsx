@@ -569,8 +569,18 @@ function AppShell() {
                 onSetImage={(img, name) => {
                   setImage(img);
                   setImageName(name);
+                  // 사진을 새로 고르면 앞서 입력해 둔 검색어는 버린다.
+                  // 둘이 함께 넘어가면 메뉴판에 없는 음식이 결과에 섞인다.
+                  if (img) setMenuText('');
                 }}
-                onChangeMenuText={setMenuText}
+                onChangeMenuText={(text) => {
+                  setMenuText(text);
+                  // 반대로 검색어를 입력하면 사진 쪽을 비운다.
+                  if (text.trim()) {
+                    setImage(null);
+                    setImageName(null);
+                  }
+                }}
                 onAnalyze={handleAnalyzeMenu}
                 onError={setError}
                 playBeep={playBeep}
