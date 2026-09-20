@@ -505,11 +505,20 @@ export const runFreeAnalysis = async (input: RunAnalysisInput): Promise<AnalyzeM
       namesToCheck = read;
       if (read.length > 0) {
         console.log(`[analyze] 사진에서 메뉴 ${read.length}개를 읽었습니다: ${read.slice(0, 5).join(', ')}`);
-      } else {
-        console.warn('[analyze] 사진에서 메뉴 이름을 읽지 못했습니다. 사진 전체를 분석합니다.');
       }
     } catch (e) {
       console.warn('[analyze] 메뉴 이름 읽기 실패:', (e as Error).message);
+    }
+
+    /*
+     * 사진에서 글자를 하나도 못 읽었으면 여기서 멈춘다.
+     * 억지로 분석을 돌리면 AI 가 그 나라의 그럴듯한 음식을 지어내 채운다.
+     * 사용자에게는 다시 찍어 달라고 하는 편이 정직하고 안전하다.
+     */
+    if (namesToCheck.length === 0) {
+      throw new Error(
+        '메뉴판에서 글자를 읽지 못했습니다. 메뉴가 화면에 크고 또렷하게 들어오도록 다시 찍어 주세요.'
+      );
     }
   } else {
     namesToCheck = typedNames;
@@ -598,11 +607,18 @@ export const runFreeAnalysis = async (input: RunAnalysisInput): Promise<AnalyzeM
   }
 
   /*
-   * 이름을 이미 읽어 두었다면 사진을 다시 보내지 않는다.
-   * 이미지를 함께 올리면 전송량이 커지고 처리도 느려지는데,
-   * 모르는 메뉴의 이름만 있으면 분석에는 충분하다.
+   * 사진은 분석 단계에 넘기지 않는다.
+   *
+   * 앞서 읽어 둔 이름만으로 분석한다. 사진을 통째로 넘기면 AI 가 흐리거나
+   * 비어 있는 부분을 그 나라의 그럴듯한 음식으로 채워 넣는다. 실제로 글자가
+   * 하나도 없는 사진에 '여행 국가: 일본' 을 주자 돈카츠·타코야키 같은 메뉴를
+   * 지어냈다. 메뉴판에 없는 음식을 보여주면 손님이 그걸 시킬 수 있다.
+   *
+   * 읽기 단계에서 나온 이름만 넘기면 지어낼 재료 자체가 없어진다.
+   * 대신 읽기가 놓친 메뉴는 결과에서도 빠지는데, 없는 메뉴를 보여주는 것보다
+   * 낫다고 판단했다.
    */
-  const needsImage = !!input.image && unknownNames.length === 0;
+  const needsImage = false;
 
   const result = await analyzeMenu({
     image: needsImage ? input.image : null,

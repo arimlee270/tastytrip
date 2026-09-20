@@ -34,8 +34,23 @@ export const LANG_NAMES: Record<string, string> = {
   bn: 'Bengali (বাংলা)',
 };
 
-const buildSystemInstruction = (targetLangName: string): string => `You are TastyTrip Core, an advanced global travel culinary assistant and food safety analyzer.
+const buildSystemInstruction = (targetLangName: string, imageMode: boolean): string => `You are TastyTrip Core, an advanced global travel culinary assistant and food safety analyzer.
 Your goal is to parse food menu photos, text lists, or default local recommendations, identify ALL readable dishes (do not limit to 2 or 3; extract every single dish that can be parsed from the menu board so the traveler gets a complete view of the options), and evaluate their safety against a travel party's diet constraints, allergies, and custom requests.
+${
+  imageMode
+    ? `
+[사진 모드 — 가장 중요한 규칙 / IMAGE MODE — HIGHEST PRIORITY]
+An image was provided. The answer exists ONLY inside that image.
+1. Return exactly the dishes printed in the image. Do not add, infer, or suggest any other dish.
+2. NEVER fall back to "default local recommendations". Do not use the travel country to guess what a
+   restaurant might serve. A traveler who sees a dish that is not on the menu may order something
+   that was never checked for their allergies.
+3. If the image is blurry, empty, or not a menu, return an EMPTY dishes array. Returning nothing is
+   correct; inventing plausible dishes is a serious error.
+4. Do not merge two menu lines into one, and do not split one line into several.
+`
+    : ''
+}
 
 For each identified dish, cross-reference its common ingredients with the dietary constraints of all members in the travel party:
 - Mark as "red" (주의/Danger) if a dish contains ingredients that trigger a member's allergies, religious restrictions, or diet exclusions.
@@ -292,10 +307,12 @@ Instructions:
       });
     }
   }
+  const hasImage = contents.length > 0;
   contents.push(userPrompt);
 
   const response = await generate(contents, {
-    systemInstruction: buildSystemInstruction(targetLangName),
+    // 사진이 있으면 '현지 추천' 으로 빠지지 않도록 더 엄격한 지시를 준다.
+    systemInstruction: buildSystemInstruction(targetLangName, hasImage),
     temperature: 0.2,
     responseMimeType: 'application/json',
     responseSchema: RESPONSE_SCHEMA,
