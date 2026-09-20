@@ -753,9 +753,30 @@ export const runRestaurantAnalysis = async (
     [input.restaurantId]
   )) as { original_name: string }[];
 
+  /*
+   * 사진은 먼저 이름만 읽고, 그 이름으로 분석한다.
+   *
+   * 사진을 분석 단계에 통째로 넘기면 AI 가 못 읽은 부분을 그 나라의 그럴듯한
+   * 음식으로 채운다. 실제로 글자 없는 사진에 '여행 국가: 일본' 을 주자
+   * 돈카츠·타코야키를 지어냈다. 메뉴판에 없는 음식을 식당 메뉴로 등록하면
+   * 다음 방문자에게도 그대로 퍼진다.
+   */
+  let menuNames = input.menuText;
+  if (input.image) {
+    const read = await extractMenuNames(input.image).catch(() => [] as string[]);
+    if (read.length === 0) {
+      throw new Error(
+        '메뉴판에서 글자를 읽지 못했습니다. 메뉴가 화면에 크고 또렷하게 들어오도록 다시 찍어 주세요.'
+      );
+    }
+    console.log(`[analyze] 식당 메뉴판에서 ${read.length}개를 읽었습니다: ${read.slice(0, 5).join(', ')}`);
+    menuNames = read.join(', ');
+  }
+
   const result = await analyzeMenu({
-    image: input.image,
-    menuText: input.menuText,
+    // 이름을 읽어 두었으므로 사진은 넘기지 않는다.
+    image: null,
+    menuText: menuNames,
     homeCountry: input.homeCountry,
     travelCountry: input.travelCountry,
     party: input.party,
@@ -765,8 +786,18 @@ export const runRestaurantAnalysis = async (
   });
 
   const dishes: Dish[] = [];
+  /*
+   * 같은 메뉴가 두 번 나오지 않게 한다.
+   * 기준은 메뉴판에 적힌 원문 이름이다. 표준 음식으로 거르면 모둠회와
+   * 잿방어 회처럼 같은 분류로 묶이는 다른 메뉴가 지워진다.
+   */
+  const takenKeys = new Set<string>();
 
   for (const raw of result.dishes || []) {
+    const key = String(raw?.original || raw?.name || '').trim().toLowerCase();
+    if (key && takenKeys.has(key)) continue;
+    if (key) takenKeys.add(key);
+
     const enriched = (await enrichDish(raw, input.filter, input.travelCountry)) as Dish & {
       __bundle: ReferenceBundle;
     };
