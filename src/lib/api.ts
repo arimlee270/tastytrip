@@ -193,6 +193,13 @@ export const registerMenusToRestaurant = (restaurantId: string, dishes: Dish[], 
 export const fetchMenu = (menuId: string, lang: string) =>
   request<{ dish: Dish; evidence: unknown[] }>(`/api/menus/${menuId}${qs({ lang })}`);
 
+/**
+ * 로그인 사용자가 마지막으로 분석한 결과.
+ * 안전/주의 판정은 서버가 현재 프로필로 다시 계산해서 내려준다.
+ */
+export const fetchLastAnalysis = () =>
+  request<{ dishes: Dish[]; saved_at?: string }>('/api/last-analysis');
+
 export const fetchHistory = () =>
   request<{ history: { searched_at: string; query_text: string; restaurant_name: string | null; gemini_called: number }[] }>(
     '/api/history'

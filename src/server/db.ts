@@ -223,6 +223,21 @@ CREATE TABLE IF NOT EXISTS standard_food_analysis (
 );
 
 /*
+ * 로그인 사용자의 마지막 분석 결과.
+ *
+ * 분석 결과 카드는 그동안 브라우저에만 남아서, 다른 기기나 다른 브라우저로
+ * 열면 사라졌다. 로그인한 사용자는 이어서 볼 수 있도록 서버에 한 벌 남긴다.
+ * 안전/주의 판정은 여기 저장하지 않고 꺼내 볼 때마다 다시 계산한다
+ * (프로필이 바뀌면 경고도 달라져야 하므로).
+ */
+CREATE TABLE IF NOT EXISTS user_last_analysis (
+  user_id TEXT PRIMARY KEY,
+  lang TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  saved_at TEXT NOT NULL
+);
+
+/*
  * 메뉴별 분석 캐시 (계획서 12.1 3단계).
  *
  * standard_food_analysis 는 표준 음식 하나에 칸이 하나뿐이라, 같은 분류로 묶이는

@@ -414,15 +414,15 @@ export interface RunAnalysisInput {
  * 캐시에 저장해 둔 음식 분석을 현재 사용자 조건으로 다시 판정해 Dish 로 만든다.
  * 설명·재료 같은 사실 정보는 그대로 쓰고, 안전 판정만 새로 계산한다.
  */
-const cachedDishFor = async (
-  standardFoodId: string,
-  dishKey: string,
-  lang: string,
-  filter: PartyFilter
-): Promise<Dish | null> => {
-  const cached = await loadFoodAnalysis(standardFoodId, dishKey, lang);
-  if (!cached) return null;
-
+/**
+ * 저장해 둔 분석에 '지금 이 사용자'의 조건을 다시 적용한다.
+ *
+ * 안전/주의 판정과 경고 문구는 절대 저장된 것을 그대로 쓰지 않는다.
+ * 프로필을 바꿨는데 예전 조건으로 만든 경고가 그대로 보이면,
+ * 할랄을 해제한 사람에게 할랄 경고가 남는 식의 잘못된 안내가 된다.
+ * 재료 목록만 저장해 두고 판정은 꺼내 볼 때마다 새로 한다.
+ */
+export const reevaluateDish = (cached: Partial<Dish>, filter: PartyFilter): Dish => {
   const matchIngredients = cached.match_ingredients ?? cached.typical_ingredients ?? [];
   const matchAllergens = cached.match_allergens ?? cached.allergen_risk?.items ?? [];
 
@@ -446,7 +446,6 @@ const cachedDishFor = async (
 
   return {
     ...(cached as Dish),
-    standard_food_id: standardFoodId,
     status,
     warning: warningParts.join(' / '),
     dietary,
@@ -454,6 +453,17 @@ const cachedDishFor = async (
     reviews: cached.reviews ?? [],
     from_cache: true,
   };
+};
+
+const cachedDishFor = async (
+  standardFoodId: string,
+  dishKey: string,
+  lang: string,
+  filter: PartyFilter
+): Promise<Dish | null> => {
+  const cached = await loadFoodAnalysis(standardFoodId, dishKey, lang);
+  if (!cached) return null;
+  return { ...reevaluateDish(cached, filter), standard_food_id: standardFoodId };
 };
 
 export const runFreeAnalysis = async (input: RunAnalysisInput): Promise<AnalyzeMenuResponse> => {

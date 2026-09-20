@@ -154,6 +154,35 @@ function AppShell() {
     }
   }, []);
 
+  /*
+   * 로그인하면 마지막 분석 결과를 서버에서 가져온다.
+   *
+   * 분석 카드는 그동안 브라우저에만 있어서, 다른 기기나 다른 브라우저로 열면
+   * 사라졌다. 이 기기에 남은 결과가 없을 때만 불러와, 방금 찍은 결과를
+   * 예전 것으로 덮어쓰지 않도록 한다.
+   */
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let cancelled = false;
+    if (dishes.length > 0) return;
+
+    api
+      .fetchLastAnalysis()
+      .then((res) => {
+        if (cancelled || res.dishes.length === 0) return;
+        setDishes(res.dishes);
+      })
+      .catch(() => {
+        /* 못 불러와도 앱 사용에는 지장이 없다 */
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // 로그인 상태가 바뀔 때만 시도한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
+
   // 로그인하면 계정에 저장된 프로필을 화면 구성원으로 가져온다. (계획서 Phase 2 마이그레이션)
   useEffect(() => {
     if (!isLoggedIn) return;

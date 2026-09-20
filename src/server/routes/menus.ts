@@ -1,16 +1,18 @@
 import { Router } from 'express';
-import { db, parseJson } from '../db';
+import { db, nowIso, parseJson, toJson } from '../db';
 import { optionalAuth } from '../auth';
 import { resolveParty } from '../services/party';
 import { getRestaurantById } from '../services/places';
 import {
   analysisToDish,
   getRestaurantDishes,
+  reevaluateDish,
   registerDishesToRestaurant,
   runFreeAnalysis,
   runRestaurantAnalysis,
 } from '../services/menuPipeline';
 import { friendlyGeminiError } from '../services/gemini';
+import type { Dish } from '../../types';
 
 /** 계획서 13.4 메뉴 분석 API */
 export const menusRouter = Router();
@@ -37,11 +39,47 @@ menusRouter.post('/analyze-menu', async (req, res) => {
       userId: req.userId,
     });
 
+    // 로그인 사용자는 다른 기기에서도 이어 볼 수 있도록 결과를 남긴다.
+    if (req.userId && result.dishes.length > 0) {
+      await db.run(
+        `INSERT INTO user_last_analysis (user_id, lang, payload, saved_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           lang = excluded.lang, payload = excluded.payload, saved_at = excluded.saved_at`,
+        [req.userId, targetLanguage || 'ko', toJson(result.dishes), nowIso()]
+      );
+    }
+
     res.json(result);
   } catch (error: any) {
     console.error('Error in /api/analyze-menu:', error);
     res.status(500).json({ error: friendlyGeminiError(error) });
   }
+});
+
+/**
+ * 마지막으로 분석한 결과를 돌려준다 (로그인 사용자만).
+ *
+ * 저장된 판정을 그대로 주지 않고 지금 프로필로 다시 계산한다.
+ * 알레르기 설정을 바꿨는데 예전 조건의 경고가 남아 있으면 안 되기 때문이다.
+ */
+menusRouter.get('/last-analysis', async (req, res) => {
+  if (!req.userId) {
+    res.json({ dishes: [] });
+    return;
+  }
+  const row: any = await db.get('SELECT * FROM user_last_analysis WHERE user_id = ?', [req.userId]);
+  if (!row) {
+    res.json({ dishes: [] });
+    return;
+  }
+
+  const saved = parseJson<Dish[]>(row.payload, []);
+  const { filter } = await resolveParty(req.query, req.userId);
+  res.json({
+    dishes: saved.map((d) => reevaluateDish(d, filter)),
+    saved_at: row.saved_at,
+  });
 });
 
 /**
