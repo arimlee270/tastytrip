@@ -351,17 +351,40 @@ export const extractMenuNames = async (image: string): Promise<string[]> => {
   ];
 
   const response = await generate(contents, {
+    /*
+     * 이 단계는 '읽는' 일만 한다. 아는 것을 말하는 자리가 아니다.
+     *
+     * 예전 지시문은 "메뉴판을 전부 옮겨 적어라" 였는데, 글자가 없는 사진을 주자
+     * 인도 음식 20개를 '읽었다'고 돌려줬다. 사진을 보고 업종을 짐작해 그럴듯한
+     * 메뉴를 만들어 낸 것이다. 그래서 읽을 수 없을 때 어떻게 해야 하는지를
+     * 먼저, 분명하게 적는다.
+     */
     systemInstruction:
-      'You transcribe menu boards completely and literally. Return every item printed on the menu, ' +
-      'in the order it appears. Never invent items that are not visible in the image.',
+      'You are an OCR transcriber. You copy characters that are physically visible in the image. ' +
+      'You do not know anything about restaurants, cuisines, or what a menu usually contains.\n\n' +
+      'RULES (in order of priority):\n' +
+      '1. If you cannot clearly read printed text in the image, return an empty list. ' +
+      'An empty list is the correct answer for a blank, blurry, dark, or non-menu image.\n' +
+      '2. Never output a dish name unless you can point to the exact characters in the image. ' +
+      'Do not guess from the restaurant type, the country, the photo style, or your own knowledge.\n' +
+      '3. Copy the characters exactly as printed, in the original script and order.\n' +
+      '4. Returning fewer items than are on the menu is acceptable. ' +
+      'Returning an item that is not printed there is a serious error.',
     temperature: 0,
     responseMimeType: 'application/json',
     responseSchema: {
       type: 'OBJECT',
       properties: {
+        /** 글자를 실제로 읽었는지. 읽지 못했으면 names 는 비어 있어야 한다. */
+        readable: {
+          type: 'BOOLEAN',
+          description:
+            'true only if printed text was actually legible in the image. ' +
+            'false for blank, blurry, dark, or non-menu images.',
+        },
         names: { type: 'ARRAY', items: { type: 'STRING' } },
       },
-      required: ['names'],
+      required: ['readable', 'names'],
     },
   });
 
@@ -369,6 +392,11 @@ export const extractMenuNames = async (image: string): Promise<string[]> => {
   if (!text) return [];
   try {
     const parsed = JSON.parse(text.trim());
+    // 스스로 '읽지 못했다'고 답하면 이름이 딸려 와도 버린다.
+    if (parsed?.readable === false) {
+      console.warn('[gemini] 사진에서 글자를 읽지 못했다고 응답했습니다.');
+      return [];
+    }
     return Array.isArray(parsed?.names)
       ? parsed.names.map((n: unknown) => String(n).trim()).filter(Boolean).slice(0, 20)
       : [];
