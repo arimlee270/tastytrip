@@ -3,7 +3,6 @@ import { motion } from 'motion/react';
 import {
   Bookmark,
   Check,
-  Clock,
   LogIn,
   LogOut,
   Save,
@@ -19,7 +18,7 @@ import { COUNTRY_LIST } from '../lib/maps';
 /**
  * 계획서 14.2 — 내 정보 화면.
  * 기존 STEP 1(여정 설정) / STEP 2(안심 필터) 를 하나의 탭으로 통합하고,
- * 계정, 저장한 식당, 분석 기록을 추가했다.
+ * 계정과 저장한 식당을 추가했다.
  */
 
 interface ProfileScreenProps {
@@ -63,7 +62,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 }) => {
   const { user, isLoggedIn, logout, pushParty } = useAuth();
   const [savedRestaurants, setSavedRestaurants] = useState<Restaurant[]>([]);
-  const [history, setHistory] = useState<{ searched_at: string; query_text: string; restaurant_name: string | null }[]>([]);
   const [savedMsg, setSavedMsg] = useState(false);
   const [countryQuery, setCountryQuery] = useState('');
   const [countryOpen, setCountryOpen] = useState(false);
@@ -81,17 +79,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   useEffect(() => {
     if (!isLoggedIn) {
       setSavedRestaurants([]);
-      setHistory([]);
       return;
     }
     api
       .fetchSavedRestaurants()
       .then((r) => setSavedRestaurants(r.restaurants))
       .catch(() => setSavedRestaurants([]));
-    api
-      .fetchHistory()
-      .then((r) => setHistory(r.history))
-      .catch(() => setHistory([]));
   }, [isLoggedIn]);
 
   const handleAddMember = () => {
@@ -479,32 +472,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </div>
       )}
 
-      {/* 분석 기록 */}
-      {isLoggedIn && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-black text-neutral-800">{t.analysisHistory}</span>
-          </div>
-          {history.length === 0 ? (
-            <div className="bg-white border border-line-trip rounded-2xl p-4 text-center text-[11px] text-muted-trip">
-              {t.noHistory}
-            </div>
-          ) : (
-            <div className="bg-white border border-line-trip rounded-2xl divide-y divide-line-trip/60">
-              {history.slice(0, 10).map((h, i) => (
-                <div key={i} className="p-2.5 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-bold text-neutral-800 truncate">{h.query_text}</div>
-                    {h.restaurant_name && <div className="text-[10px] text-muted-trip truncate">{h.restaurant_name}</div>}
-                  </div>
-                  <span className="text-[10px] text-muted-trip shrink-0">{h.searched_at.slice(0, 10)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </motion.section>
   );
 };

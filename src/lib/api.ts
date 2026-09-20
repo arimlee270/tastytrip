@@ -200,11 +200,6 @@ export const fetchMenu = (menuId: string, lang: string) =>
 export const fetchLastAnalysis = () =>
   request<{ dishes: Dish[]; saved_at?: string }>('/api/last-analysis');
 
-export const fetchHistory = () =>
-  request<{ history: { searched_at: string; query_text: string; restaurant_name: string | null; gemini_called: number }[] }>(
-    '/api/history'
-  );
-
 /* ------------------------------ 추천 ------------------------------ */
 
 export const fetchRestaurantRecommendations = (params: {

@@ -45,8 +45,6 @@ export const additionTranslations: Record<string, Record<string, string>> = {
     profileSaved: '프로필이 저장되었습니다.',
     saveProfileBtn: '프로필 저장',
     savedRestaurants: '저장한 식당',
-    analysisHistory: '분석 기록',
-    noHistory: '아직 분석 기록이 없습니다.',
     syncNotice: '로그인하면 이 정보가 계정에 저장되어 다른 기기에서도 유지됩니다.',
 
     // 지도
@@ -181,8 +179,6 @@ export const additionTranslations: Record<string, Record<string, string>> = {
     profileSaved: 'Profile saved.',
     saveProfileBtn: 'Save Profile',
     savedRestaurants: 'Saved Restaurants',
-    analysisHistory: 'Analysis History',
-    noHistory: 'No analysis history yet.',
     syncNotice: 'Sign in to keep this information on your account across devices.',
 
     mapTitle: 'Find Restaurants Nearby',
