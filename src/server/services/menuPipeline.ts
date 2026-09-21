@@ -8,7 +8,7 @@ import type {
   PartyFilter,
   ReferenceBundle,
 } from '../../types';
-import { analyzeMenu, extractMenuNames } from './gemini';
+import { analyzeMenu, readFoodPhoto, type PhotoReading } from './gemini';
 import { buildReferenceBundle, computeCalories, validateCalories } from './nutrition';
 import { createStandardFoodFromDish, registerAliases, resolveStandardFood } from './normalize';
 import {
@@ -33,6 +33,13 @@ import { dishCacheKey, loadFoodAnalysis, saveFoodAnalysis } from './foodCache';
  *   4. 공개 데이터(실시간 또는 캐시)
  *   5. Gemini 신규 분석
  */
+
+/**
+ * 사진에서 메뉴도 음식도 알아보지 못했을 때 사용자에게 보여줄 안내.
+ * 억지로 분석하면 AI 가 그 나라의 그럴듯한 음식을 지어내므로 여기서 멈춘다.
+ */
+const PHOTO_UNREADABLE_MESSAGE =
+  '사진에서 메뉴나 음식을 알아보지 못했습니다. 메뉴판 글씨나 음식이 화면에 크고 또렷하게 들어오도록 다시 찍어 주세요.';
 
 /* ------------------------------------------------------------------ */
 /* 저장된 분석 -> Dish 복원                                             */
@@ -500,26 +507,25 @@ export const runFreeAnalysis = async (input: RunAnalysisInput): Promise<AnalyzeM
    */
   let namesToCheck: string[] = [];
   if (input.image) {
+    let reading: PhotoReading = { kind: 'none', names: [] };
     try {
-      const read = await extractMenuNames(input.image);
-      namesToCheck = read;
-      if (read.length > 0) {
-        console.log(`[analyze] 사진에서 메뉴 ${read.length}개를 읽었습니다: ${read.slice(0, 5).join(', ')}`);
-      }
+      reading = await readFoodPhoto(input.image);
     } catch (e) {
-      console.warn('[analyze] 메뉴 이름 읽기 실패:', (e as Error).message);
+      console.warn('[analyze] 사진 확인 실패:', (e as Error).message);
     }
 
     /*
-     * 사진에서 글자를 하나도 못 읽었으면 여기서 멈춘다.
+     * 메뉴판도 음식도 알아보지 못하면 여기서 멈춘다.
      * 억지로 분석을 돌리면 AI 가 그 나라의 그럴듯한 음식을 지어내 채운다.
      * 사용자에게는 다시 찍어 달라고 하는 편이 정직하고 안전하다.
      */
-    if (namesToCheck.length === 0) {
-      throw new Error(
-        '메뉴판에서 글자를 읽지 못했습니다. 메뉴가 화면에 크고 또렷하게 들어오도록 다시 찍어 주세요.'
-      );
+    if (reading.names.length === 0) {
+      throw new Error(PHOTO_UNREADABLE_MESSAGE);
     }
+
+    namesToCheck = reading.names;
+    const what = reading.kind === 'menu' ? '메뉴판' : '음식 사진';
+    console.log(`[analyze] ${what}에서 ${namesToCheck.length}개 확인: ${namesToCheck.slice(0, 5).join(', ')}`);
   } else {
     namesToCheck = typedNames;
   }
@@ -763,14 +769,14 @@ export const runRestaurantAnalysis = async (
    */
   let menuNames = input.menuText;
   if (input.image) {
-    const read = await extractMenuNames(input.image).catch(() => [] as string[]);
-    if (read.length === 0) {
-      throw new Error(
-        '메뉴판에서 글자를 읽지 못했습니다. 메뉴가 화면에 크고 또렷하게 들어오도록 다시 찍어 주세요.'
-      );
-    }
-    console.log(`[analyze] 식당 메뉴판에서 ${read.length}개를 읽었습니다: ${read.slice(0, 5).join(', ')}`);
-    menuNames = read.join(', ');
+    const reading = await readFoodPhoto(input.image).catch(
+      () => ({ kind: 'none', names: [] }) as PhotoReading
+    );
+    if (reading.names.length === 0) throw new Error(PHOTO_UNREADABLE_MESSAGE);
+
+    const what = reading.kind === 'menu' ? '메뉴판' : '음식 사진';
+    console.log(`[analyze] 식당 ${what}에서 ${reading.names.length}개 확인: ${reading.names.slice(0, 5).join(', ')}`);
+    menuNames = reading.names.join(', ');
   }
 
   const result = await analyzeMenu({

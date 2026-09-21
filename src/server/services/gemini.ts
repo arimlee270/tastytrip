@@ -324,18 +324,32 @@ Instructions:
   return JSON.parse(text.trim());
 };
 
+export type PhotoKind = 'menu' | 'dish' | 'none';
+
+export interface PhotoReading {
+  /** menu = 메뉴판 글자를 읽음, dish = 음식이 찍힌 사진, none = 판단 불가 */
+  kind: PhotoKind;
+  names: string[];
+}
+
 /**
- * 사진에서 메뉴 이름만 읽어 온다.
+ * 사진에서 음식 이름을 알아낸다.
  *
- * 전체 분석과 달리 재료·알레르기·칼로리를 묻지 않으므로 응답이 짧고 빠르다.
- * 이름을 먼저 알아내면, 이미 분석해 둔 음식은 AI 를 다시 부르지 않고
- * 저장된 결과를 쓸 수 있다. (계획서 12.1 DB 우선 조회)
+ * 사진은 두 종류다. 메뉴판을 찍은 것과, 음식을 직접 찍은 것.
+ *   - 메뉴판이면 적힌 글자를 그대로 읽는다.
+ *   - 음식 사진이면 보이는 음식이 무엇인지 알아본다.
+ *
+ * 어느 쪽이든 이름을 먼저 알아내는 이유는 두 가지다.
+ * 하나는 이미 분석해 둔 음식이면 AI 를 다시 부르지 않기 위해서고(계획서 12.1),
+ * 다른 하나는 뒤이은 분석 단계에 사진을 넘기지 않기 위해서다. 사진을 넘기면
+ * AI 가 못 본 부분을 그 나라의 그럴듯한 음식으로 채워 넣는다.
  */
-export const extractMenuNames = async (image: string): Promise<string[]> => {
-  if (!image || !image.startsWith('data:image')) return [];
+export const readFoodPhoto = async (image: string): Promise<PhotoReading> => {
+  const empty: PhotoReading = { kind: 'none', names: [] };
+  if (!image || !image.startsWith('data:image')) return empty;
 
   const commaIndex = image.indexOf(',');
-  if (commaIndex === -1) return [];
+  if (commaIndex === -1) return empty;
 
   const contents: any[] = [
     {
@@ -344,64 +358,73 @@ export const extractMenuNames = async (image: string): Promise<string[]> => {
         mimeType: image.substring(5, image.indexOf(';')),
       },
     },
-    'Read this menu photo and list EVERY menu item name exactly as written, in the original language. ' +
-      'Go through the image section by section, top to bottom, left to right, including any side columns, ' +
-      'boxed specials, and items near the edges. Do not skip or merge items, and do not stop early. ' +
-      'Only dish names — no prices, no descriptions, no category headings, no commentary.',
+    'Look at this photo and decide what it is.\n\n' +
+      'If it is a MENU (printed or handwritten list of dishes): set kind to "menu" and copy every ' +
+      'dish name exactly as written, in the original language. Go section by section, top to bottom, ' +
+      'left to right, including side columns and items near the edges. Do not merge or split items.\n\n' +
+      'If it is a PHOTO OF FOOD (a plate, bowl, or dish on a table): set kind to "dish" and name the ' +
+      'food you can actually see. One entry per distinct dish visible in the photo.\n\n' +
+      'If it is neither, or you cannot tell: set kind to "none" and return an empty list.\n\n' +
+      'No prices, no descriptions, no category headings, no commentary.',
   ];
 
   const response = await generate(contents, {
     /*
-     * 이 단계는 '읽는' 일만 한다. 아는 것을 말하는 자리가 아니다.
+     * 이 단계는 '보고 말하는' 일만 한다. 아는 것을 보태는 자리가 아니다.
      *
      * 예전 지시문은 "메뉴판을 전부 옮겨 적어라" 였는데, 글자가 없는 사진을 주자
      * 인도 음식 20개를 '읽었다'고 돌려줬다. 사진을 보고 업종을 짐작해 그럴듯한
-     * 메뉴를 만들어 낸 것이다. 그래서 읽을 수 없을 때 어떻게 해야 하는지를
+     * 메뉴를 만들어 낸 것이다. 그래서 확인할 수 없을 때 어떻게 해야 하는지를
      * 먼저, 분명하게 적는다.
      */
     systemInstruction:
-      'You are an OCR transcriber. You copy characters that are physically visible in the image. ' +
-      'You do not know anything about restaurants, cuisines, or what a menu usually contains.\n\n' +
+      'You report only what is actually in the image in front of you. ' +
+      'You never add dishes from your knowledge of restaurants, cuisines, or countries.\n\n' +
       'RULES (in order of priority):\n' +
-      '1. If you cannot clearly read printed text in the image, return an empty list. ' +
-      'An empty list is the correct answer for a blank, blurry, dark, or non-menu image.\n' +
-      '2. Never output a dish name unless you can point to the exact characters in the image. ' +
-      'Do not guess from the restaurant type, the country, the photo style, or your own knowledge.\n' +
-      '3. Copy the characters exactly as printed, in the original script and order.\n' +
-      '4. Returning fewer items than are on the menu is acceptable. ' +
-      'Returning an item that is not printed there is a serious error.',
+      '1. If you cannot clearly make out menu text or food in the image, set kind to "none" and ' +
+      'return an empty list. That is the correct answer for a blank, blurry, dark, or unrelated image.\n' +
+      '2. For a menu, only output a name if you can point to those exact characters in the image. ' +
+      'For a food photo, only output a dish you can actually see on the plate.\n' +
+      '3. Never guess from the restaurant type, the country, the photo style, or your own knowledge.\n' +
+      '4. Reporting fewer items than are present is acceptable. ' +
+      'Reporting something that is not there is a serious error.',
     temperature: 0,
     responseMimeType: 'application/json',
     responseSchema: {
       type: 'OBJECT',
       properties: {
-        /** 글자를 실제로 읽었는지. 읽지 못했으면 names 는 비어 있어야 한다. */
-        readable: {
-          type: 'BOOLEAN',
+        kind: {
+          type: 'STRING',
+          enum: ['menu', 'dish', 'none'],
           description:
-            'true only if printed text was actually legible in the image. ' +
-            'false for blank, blurry, dark, or non-menu images.',
+            '"menu" if the image shows a menu with readable dish names, ' +
+            '"dish" if it shows actual food, "none" if neither is clear.',
         },
         names: { type: 'ARRAY', items: { type: 'STRING' } },
       },
-      required: ['readable', 'names'],
+      required: ['kind', 'names'],
     },
   });
 
   const text = response.text;
-  if (!text) return [];
+  if (!text) return empty;
   try {
     const parsed = JSON.parse(text.trim());
-    // 스스로 '읽지 못했다'고 답하면 이름이 딸려 와도 버린다.
-    if (parsed?.readable === false) {
-      console.warn('[gemini] 사진에서 글자를 읽지 못했다고 응답했습니다.');
-      return [];
+    const kind: PhotoKind =
+      parsed?.kind === 'menu' || parsed?.kind === 'dish' ? parsed.kind : 'none';
+
+    // 스스로 '모르겠다'고 답하면 이름이 딸려 와도 버린다.
+    if (kind === 'none') {
+      console.warn('[gemini] 사진에서 메뉴도 음식도 확인하지 못했습니다.');
+      return empty;
     }
-    return Array.isArray(parsed?.names)
+
+    const names = Array.isArray(parsed?.names)
       ? parsed.names.map((n: unknown) => String(n).trim()).filter(Boolean).slice(0, 20)
       : [];
+    return names.length > 0 ? { kind, names } : empty;
   } catch {
-    return [];
+    return empty;
   }
 };
 
