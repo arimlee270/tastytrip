@@ -12,6 +12,7 @@ import {
 import { getRestaurantDishes, menuFreshness } from '../services/menuPipeline';
 import { resolveParty } from '../services/party';
 import { recommendRestaurants } from '../services/recommend';
+import { suggestMenusFromBranches } from '../services/franchise';
 
 /** 계획서 13.3 식당 API */
 export const restaurantsRouter = Router();
@@ -85,6 +86,22 @@ restaurantsRouter.get('/nearby', async (req, res) => {
     console.error('[restaurants/nearby]', error);
     res.status(500).json({ error: error.message || '주변 식당을 불러오지 못했습니다.' });
   }
+});
+
+/**
+ * 같은 프랜차이즈 다른 지점에서 등록된 메뉴 (참고용).
+ *
+ * 이 지점의 메뉴로 바로 넣지 않는다. 지점마다 안 파는 메뉴가 있어서,
+ * 없는 메뉴를 있는 것처럼 보여주면 손님이 그것을 주문하게 된다.
+ * 현장에서 확인한 사람이 따로 등록해야 이 지점의 메뉴가 된다.
+ */
+restaurantsRouter.get('/:restaurantId/branch-menus', async (req, res) => {
+  const restaurant = await getRestaurantById(req.params.restaurantId);
+  if (!restaurant) {
+    res.status(404).json({ error: '식당을 찾을 수 없습니다.' });
+    return;
+  }
+  res.json(await suggestMenusFromBranches(restaurant));
 });
 
 /** 식당명 / 음식 종류 / 지역 검색 */

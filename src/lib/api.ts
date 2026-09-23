@@ -197,6 +197,20 @@ export const fetchMenu = (menuId: string, lang: string) =>
  * 로그인 사용자가 마지막으로 분석한 결과.
  * 안전/주의 판정은 서버가 현재 프로필로 다시 계산해서 내려준다.
  */
+export interface BranchMenu {
+  original_name: string;
+  translated_name: string | null;
+  image_url: string | null;
+  from_branch: string;
+  branch_count: number;
+}
+
+/** 같은 프랜차이즈 다른 지점에 등록된 메뉴 (참고용) */
+export const fetchBranchMenus = (restaurantId: string) =>
+  request<{ brand: string | null; menus: BranchMenu[] }>(
+    `/api/restaurants/${restaurantId}/branch-menus`
+  );
+
 export const fetchLastAnalysis = () =>
   request<{ dishes: Dish[]; saved_at?: string }>('/api/last-analysis');
 

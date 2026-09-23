@@ -11,9 +11,11 @@ import {
   MapPin,
   Star,
   Utensils,
+  Store,
 } from 'lucide-react';
 import * as api from '../lib/api';
 import { formatDistance } from '../lib/maps';
+import { format } from '../i18n';
 import { DishCard } from '../components/DishCard';
 import { ReportModal } from '../components/ReportModal';
 import { useAuth } from '../lib/auth';
@@ -59,6 +61,8 @@ export const RestaurantScreen: React.FC<RestaurantScreenProps> = ({
   const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null);
   const [reportTarget, setReportTarget] = useState<Dish | null>(null);
   const [matchScore, setMatchScore] = useState<number | null>(null);
+  /** 같은 프랜차이즈 다른 지점에 등록된 메뉴 (참고용) */
+  const [branchMenus, setBranchMenus] = useState<api.BranchMenu[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,6 +94,12 @@ export const RestaurantScreen: React.FC<RestaurantScreenProps> = ({
       });
       const mine = rec.recommendations.find((r) => r.restaurant.restaurant_id === restaurant.restaurant_id);
       setMatchScore(mine ? Math.round(mine.score * 100) : null);
+
+      // 프랜차이즈면 다른 지점 메뉴를 참고로 가져온다. 실패해도 화면에는 지장이 없다.
+      api
+        .fetchBranchMenus(restaurant.restaurant_id)
+        .then((r) => setBranchMenus(r.menus))
+        .catch(() => setBranchMenus([]));
     } catch (err: any) {
       setError(err.message || '식당 정보를 불러오지 못했습니다.');
     } finally {
@@ -271,6 +281,61 @@ export const RestaurantScreen: React.FC<RestaurantScreenProps> = ({
           />
         ))}
       </div>
+
+      {/*
+        같은 프랜차이즈 다른 지점의 메뉴.
+        이 지점 메뉴로 섞지 않고 따로 묶어 보여준다. 지점마다 안 파는 메뉴가
+        있어서, 있는 것처럼 보이면 손님이 없는 메뉴를 주문하게 된다.
+      */}
+      {branchMenus.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <div className="flex items-center gap-1">
+            <Store className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-black text-neutral-800">{t.branchMenusTitle}</span>
+          </div>
+
+          <p className="text-[11px] text-muted-trip leading-relaxed">{t.branchMenusNote}</p>
+
+          <div className="bg-white border border-dashed border-line-trip rounded-2xl divide-y divide-line-trip/60">
+            {branchMenus.map((m, i) => (
+              <div key={i} className="p-2.5 flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-soft-trip flex items-center justify-center shrink-0 overflow-hidden">
+                  {m.image_url ? (
+                    <img
+                      src={m.image_url}
+                      alt={m.translated_name || m.original_name}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <Utensils className="w-4 h-4 text-primary" />
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-bold text-neutral-800 truncate">
+                    {m.translated_name || m.original_name}
+                  </div>
+                  <div className="text-[10px] text-muted-trip truncate">
+                    {m.branch_count > 1 ? format(t.branchMenusFrom, { n: m.branch_count }) : m.from_branch}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={() => {
+              playBeep();
+              onShootMenu(detail);
+            }}
+            className="w-full border border-line-trip rounded-xl py-2.5 bg-white text-neutral-600 hover:text-primary hover:bg-soft-trip/35 font-black text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>{t.branchMenusCheck}</span>
+          </button>
+        </div>
+      )}
 
       {reportTarget && (
         <ReportModal
