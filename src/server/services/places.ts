@@ -467,10 +467,39 @@ export const searchText = async (opts: TextSearchOptions): Promise<Restaurant[]>
     throw toUnavailable(error, '이름 검색');
   }
 
+  /*
+   * 상호가 맞는 가게만 남긴다.
+   *
+   * 구글은 상호뿐 아니라 업종으로도 찾아 준다. 'BBQ' 로 검색하면 상호가
+   * 'BBQ치킨' 인 곳과 함께, 바비큐를 파는 '올히 광주상무점' 같은 가게도 섞여
+   * 나온다. 구글 입장에서는 맞는 답이지만, 가게 이름으로 찾는 사람에게는
+   * 찾던 곳이 엉뚱한 결과에 묻힌다.
+   *
+   * 검색어를 낱말로 쪼개 하나라도 이름에 들어 있으면 통과시킨다.
+   * '명동 맛집' 처럼 지역과 일반어를 함께 치는 경우까지 막지 않기 위함이다.
+   */
+  const tokens = query
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
+
+  const nameMatches = (name: string): boolean => {
+    if (tokens.length === 0) return true;
+    const lower = name.toLowerCase();
+    return tokens.some((t) => lower.includes(t));
+  };
+
   const results: Restaurant[] = [];
+  let skipped = 0;
   for (const p of places) {
     const mapped = mapPlace(p, opts.languageCode);
+    // 검색 결과가 아니어도 가게 정보 자체는 저장해 둔다 (지도에서 다시 쓸 수 있다).
     const saved = await upsertRestaurant(mapped);
+    if (!nameMatches(saved.name)) {
+      skipped += 1;
+      continue;
+    }
     results.push({
       ...saved,
       distance_m:
@@ -479,6 +508,10 @@ export const searchText = async (opts: TextSearchOptions): Promise<Restaurant[]>
           : undefined,
       source: 'google' as const,
     });
+  }
+
+  if (skipped > 0) {
+    console.log(`[places] '${query}' 검색: 상호가 맞지 않는 ${skipped}곳을 제외했습니다.`);
   }
   return results;
 };
