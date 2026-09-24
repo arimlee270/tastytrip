@@ -102,6 +102,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const [sheet, setSheet] = useState<'peek' | 'half' | 'full'>('half');
   /** 하단 시트에서 보고 있는 탭 */
   const [sheetTab, setSheetTab] = useState<'list' | 'recommend'>('list');
+  /** 입력 중 보여줄 가게 이름 후보 */
+  const [suggestions, setSuggestions] = useState<api.Suggestion[]>([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
   /** 지도를 옮겨서 지금 목록과 보이는 영역이 어긋났을 때 담아 두는 좌표 */
   const [pendingCenter, setPendingCenter] = useState<Coords | null>(null);
 
@@ -308,6 +311,27 @@ export const MapScreen: React.FC<MapScreenProps> = ({
     });
   }, [restaurants, mapReady, onSelectRestaurant, playBeep]);
 
+  /*
+   * 입력하는 동안 가게 이름 후보를 찾는다.
+   *
+   * 글자를 칠 때마다 곧바로 부르면 요청이 우수수 나간다. 잠시 멈췄을 때만
+   * 한 번 부른다. 우리 DB 조회라 비용은 들지 않지만 불필요한 왕복은 줄인다.
+   */
+  useEffect(() => {
+    const text = query.trim();
+    if (text.length < 1) {
+      setSuggestions([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      api
+        .fetchSuggestions({ q: text, lat: center.lat, lng: center.lng })
+        .then((r) => setSuggestions(r.suggestions))
+        .catch(() => setSuggestions([]));
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [query, center.lat, center.lng]);
+
   /* ---------------------------- 사용자 조작 ---------------------------- */
 
   const useMyLocation = async () => {
@@ -328,6 +352,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({
   const runSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
+    setSuggestOpen(false);
     loadNearby(center, query.trim());
     playBeep();
   };
@@ -451,9 +476,39 @@ export const MapScreen: React.FC<MapScreenProps> = ({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => setSuggestOpen(true)}
+              // 목록의 항목을 누를 시간을 준 뒤 닫는다.
+              onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
               placeholder={t.searchPlaceholder}
               className="w-full text-xs border border-line-trip rounded-full bg-white/95 backdrop-blur-sm shadow-md pl-8 pr-3 py-2.5 outline-none text-neutral-800 focus:border-primary transition-all"
             />
+
+            {/* 입력하는 동안 보여주는 가게 이름 후보 */}
+            {suggestOpen && suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-line-trip rounded-2xl shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.restaurant_id}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      playBeep();
+                      setSuggestOpen(false);
+                      setQuery(s.name);
+                      onSelectRestaurant(s as unknown as Restaurant);
+                    }}
+                    className="w-full text-left px-3 py-2.5 hover:bg-soft-trip/50 transition-colors cursor-pointer border-b border-line-trip/50 last:border-b-0"
+                  >
+                    <div className="text-[11px] font-bold text-neutral-800 truncate">{s.name}</div>
+                    <div className="text-[10px] text-muted-trip truncate">
+                      {[s.category, s.distance_m != null ? formatDistance(s.distance_m) : null, s.address]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <button
             type="submit"

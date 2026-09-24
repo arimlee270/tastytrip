@@ -197,6 +197,18 @@ export const fetchMenu = (menuId: string, lang: string) =>
  * 로그인 사용자가 마지막으로 분석한 결과.
  * 안전/주의 판정은 서버가 현재 프로필로 다시 계산해서 내려준다.
  */
+export interface Suggestion {
+  restaurant_id: string;
+  name: string;
+  address: string | null;
+  category: string | null;
+  distance_m?: number;
+}
+
+/** 입력 중 보여줄 가게 이름 후보. 우리 DB 에서만 찾으므로 비용이 들지 않는다. */
+export const fetchSuggestions = (params: { q: string; lat?: number; lng?: number }) =>
+  request<{ suggestions: Suggestion[] }>(`/api/restaurants/suggest${qs(params)}`);
+
 export interface BranchMenu {
   original_name: string;
   translated_name: string | null;

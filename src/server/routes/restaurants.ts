@@ -104,6 +104,54 @@ restaurantsRouter.get('/:restaurantId/branch-menus', async (req, res) => {
   res.json(await suggestMenusFromBranches(restaurant));
 });
 
+/**
+ * 입력하는 동안 보여줄 가게 이름 후보 (자동완성).
+ *
+ * 이미 모아 둔 식당에서만 찾는다. 글자를 칠 때마다 구글을 부르면 하루
+ * 호출 한도가 몇 분 만에 바닥난다. 우리 DB 조회는 비용이 들지 않아
+ * 마음껏 부를 수 있다.
+ */
+restaurantsRouter.get('/suggest', async (req, res) => {
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (q.length < 1) {
+    res.json({ suggestions: [] });
+    return;
+  }
+
+  const lat = numParam(req.query.lat);
+  const lng = numParam(req.query.lng);
+
+  const rows = (await db.all(
+    `SELECT restaurant_id, name, address, latitude, longitude, category
+       FROM restaurants WHERE name LIKE ? LIMIT 40`,
+    [`%${q}%`]
+  )) as any[];
+
+  const scored = rows.map((r) => {
+    const lower = String(r.name).toLowerCase();
+    const needle = q.toLowerCase();
+    return {
+      restaurant_id: r.restaurant_id,
+      name: r.name,
+      address: r.address,
+      category: r.category,
+      distance_m:
+        lat != null && lng != null && r.latitude != null && r.longitude != null
+          ? haversineMeters({ lat, lng }, { lat: r.latitude, lng: r.longitude })
+          : undefined,
+      // 이름이 검색어로 시작하는 가게를 먼저 보여준다.
+      startsWith: lower.startsWith(needle),
+    };
+  });
+
+  scored.sort((a, b) => {
+    if (a.startsWith !== b.startsWith) return a.startsWith ? -1 : 1;
+    return (a.distance_m ?? Number.MAX_SAFE_INTEGER) - (b.distance_m ?? Number.MAX_SAFE_INTEGER);
+  });
+
+  res.json({ suggestions: scored.slice(0, 8).map(({ startsWith, ...rest }) => rest) });
+});
+
 /** 식당명 / 음식 종류 / 지역 검색 */
 restaurantsRouter.get('/search', async (req, res) => {
   try {
