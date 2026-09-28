@@ -271,68 +271,12 @@ export const DishCard: React.FC<DishCardProps> = ({
           </div>
         )}
 
-        {/* 칼로리는 사진 위 배지로만 보여준다 (부가 정보이므로 본문을 차지하지 않는다). */}
-
-        <div className="line-info bg-[#fffaf7] border border-[#ffe3d9] rounded-xl p-3 space-y-1 text-xs">
-          <span className="block text-[11px] font-black text-primary">{t.descLabel}</span>
-          <p className="text-neutral-700 leading-relaxed">{dish.desc}</p>
-        </div>
-
-        <div className="line-info bg-[#fffaf7] border border-[#ffe3d9] rounded-xl p-3 space-y-1 text-xs">
-          <span className="block text-[11px] font-black text-primary">{t.tasteLabel}</span>
-          <p className="text-neutral-700 leading-relaxed font-semibold italic">"{dish.taste}"</p>
-        </div>
-
-        {/* 대표 재료 (식단 적합성은 상단 경고와 중복되므로 표시하지 않는다) */}
-        {dish.typical_ingredients && dish.typical_ingredients.length > 0 && (
-          <div className="line-info bg-white border border-line-trip rounded-xl p-3 space-y-1 text-xs">
-            <span className="flex items-center gap-1 text-[11px] font-black text-primary">
-              <Soup className="w-3 h-3" />
-              {t.ingredientsLabel}
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {dish.typical_ingredients.slice(0, 12).map((ing, i) => (
-                <span
-                  key={`${ing}-${i}`}
-                  className="text-[10px] font-semibold bg-soft-trip/60 text-neutral-700 border border-line-trip rounded-full px-2 py-0.5"
-                >
-                  {ing}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 이 식당을 다녀온 사용자가 직접 확인한 정보 (계획서 8장) */}
-        {dish.user_notes && dish.user_notes.length > 0 && (
-          <div className="line-info bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 space-y-1 text-xs">
-            <span className="flex items-center gap-1 text-[11px] font-black text-emerald-800">
-              <Users className="w-3 h-3" />
-              {t.userNotesLabel}
-            </span>
-            <ul className="space-y-0.5">
-              {dish.user_notes.slice(0, 3).map((note, i) => (
-                <li key={i} className="text-[11px] text-emerald-900 leading-relaxed">
-                  · {note}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* 알레르기 안내 문구는 항상 유지 (계획서 9.4) */}
-        <div className="text-[10px] leading-relaxed text-muted-trip bg-soft-trip/30 border border-line-trip/50 rounded-xl p-2.5">
-          ⚠️ {dish.verification_message || t.allergenDisclaimer}
-        </div>
-
-        <a
-          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(dish.name + ' ' + dish.original)}`}
-          target="_blank"
-          rel="noreferrer referrer"
-          className="video w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-black text-center block transition-all shadow-md shadow-primary/15"
-        >
-          {t.youtubeBtn}
-        </a>
+        {/*
+         * 설명·맛·재료·방문자 확인 정보·주의 문구·영상 링크는 펼침 영역으로 옮겼다.
+         * 메뉴판 한 장에서 카드가 여러 장 나오는데, 접힌 상태에서 모든 설명을 보여주면
+         * 목록을 훑어볼 수가 없다. 접힌 카드는 '먹어도 되는지' 만 답한다.
+         * 칼로리와 신뢰도는 사진 위 배지로 보여준다.
+         */}
       </div>
 
       {/* 펼침 영역 */}
@@ -345,6 +289,55 @@ export const DishCard: React.FC<DishCardProps> = ({
             className="details overflow-hidden border-t border-line-trip bg-[#fffaf7]/70"
           >
             <div className="p-4 space-y-4">
+              <div className="detail-row flex flex-col gap-1.5 border-b border-line-trip/40 pb-3">
+                <div className="detail-title text-xs font-black text-primary">{t.descLabel}</div>
+                <p className="detail-text text-xs text-neutral-800 leading-relaxed">{dish.desc}</p>
+              </div>
+
+              <div className="detail-row flex flex-col gap-1.5 border-b border-line-trip/40 pb-3">
+                <div className="detail-title text-xs font-black text-primary">{t.tasteLabel}</div>
+                <p className="detail-text text-xs text-neutral-800 leading-relaxed font-semibold italic">
+                  "{dish.taste}"
+                </p>
+              </div>
+
+              {/* 대표 재료 (식단 적합성은 접힌 카드의 경고와 중복되므로 표시하지 않는다) */}
+              {dish.typical_ingredients && dish.typical_ingredients.length > 0 && (
+                <div className="detail-row flex flex-col gap-1.5 border-b border-line-trip/40 pb-3">
+                  <div className="detail-title flex items-center gap-1 text-xs font-black text-primary">
+                    <Soup className="w-3 h-3" />
+                    {t.ingredientsLabel}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {dish.typical_ingredients.slice(0, 12).map((ing, i) => (
+                      <span
+                        key={`${ing}-${i}`}
+                        className="text-[10px] font-semibold bg-soft-trip/60 text-neutral-700 border border-line-trip rounded-full px-2 py-0.5"
+                      >
+                        {ing}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 이 식당을 다녀온 사용자가 직접 확인한 정보 (계획서 8장) */}
+              {dish.user_notes && dish.user_notes.length > 0 && (
+                <div className="line-info bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 space-y-1 text-xs">
+                  <span className="flex items-center gap-1 text-[11px] font-black text-emerald-800">
+                    <Users className="w-3 h-3" />
+                    {t.userNotesLabel}
+                  </span>
+                  <ul className="space-y-0.5">
+                    {dish.user_notes.slice(0, 3).map((note, i) => (
+                      <li key={i} className="text-[11px] text-emerald-900 leading-relaxed">
+                        · {note}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="detail-row flex flex-col gap-1.5 border-b border-line-trip/40 pb-3">
                 <div className="detail-title text-xs font-black text-primary">{t.pairingLabel}</div>
                 <p className="detail-text text-xs text-neutral-800 leading-relaxed">{dish.pair}</p>
@@ -379,6 +372,15 @@ export const DishCard: React.FC<DishCardProps> = ({
                   </div>
                 </div>
               )}
+
+              <a
+                href={`https://www.youtube.com/results?search_query=${encodeURIComponent(dish.name + ' ' + dish.original)}`}
+                target="_blank"
+                rel="noreferrer referrer"
+                className="video w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-black text-center block transition-all shadow-md shadow-primary/15"
+              >
+                {t.youtubeBtn}
+              </a>
 
               {/* 리뷰 */}
               <div className="detail-row space-y-2">
@@ -501,6 +503,11 @@ export const DishCard: React.FC<DishCardProps> = ({
                   {t.reportBtn}
                 </button>
               )}
+
+              {/* 알레르기 안내 문구 (계획서 9.4) */}
+              <div className="text-[10px] leading-relaxed text-muted-trip bg-soft-trip/30 border border-line-trip/50 rounded-xl p-2.5">
+                ⚠️ {dish.verification_message || t.allergenDisclaimer}
+              </div>
             </div>
           </motion.div>
         )}
