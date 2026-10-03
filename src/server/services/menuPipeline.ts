@@ -541,27 +541,35 @@ export const runFreeAnalysis = async (input: RunAnalysisInput): Promise<AnalyzeM
      * 그래서 같은 표준 음식이 또 나오면 지우는 대신 AI 에게 따로 분석시킨다.
      * 저장된 분석은 먼저 온 메뉴가 쓰고, 뒤에 온 메뉴는 자기 내용을 받는다.
      */
-    const seenFoodIds = new Set<string>();
     const seenNames = new Set<string>();
-
+    const uniqueNames: string[] = [];
     for (const name of namesToCheck) {
       // 같은 줄을 두 번 읽은 경우만 건너뛴다.
       const key = name.trim().toLowerCase();
       if (!key || seenNames.has(key)) continue;
       seenNames.add(key);
+      uniqueNames.push(name);
+    }
 
-      const food = await resolveStandardFood([name]);
-      // 저장 칸이 메뉴 이름까지 열쇠로 쓰므로, 같은 분류의 다른 메뉴와 섞이지 않는다.
-      const dish = food
-        ? await cachedDishFor(food.standard_food_id, dishCacheKey(name), lang, input.filter)
-        : null;
+    /*
+     * 메뉴마다 순서대로 조회하면 메뉴 12개일 때 원격 DB 왕복이 24번 줄줄이 이어진다.
+     * 서로 기다릴 이유가 없으므로 한꺼번에 물어보고 함께 받는다.
+     * 결과를 담는 순서는 메뉴판에 적힌 순서를 그대로 지킨다.
+     */
+    const looked = await Promise.all(
+      uniqueNames.map(async (name) => {
+        const food = await resolveStandardFood([name]);
+        // 저장 칸이 메뉴 이름까지 열쇠로 쓰므로, 같은 분류의 다른 메뉴와 섞이지 않는다.
+        const dish = food
+          ? await cachedDishFor(food.standard_food_id, dishCacheKey(name), lang, input.filter)
+          : null;
+        return { name, dish };
+      })
+    );
 
-      if (dish) {
-        seenFoodIds.add(food!.standard_food_id);
-        cachedDishes.push(dish);
-      } else {
-        unknownNames.push(name);
-      }
+    for (const { name, dish } of looked) {
+      if (dish) cachedDishes.push(dish);
+      else unknownNames.push(name);
     }
 
     if (cachedDishes.length > 0) {
@@ -626,15 +634,55 @@ export const runFreeAnalysis = async (input: RunAnalysisInput): Promise<AnalyzeM
    */
   const needsImage = false;
 
-  const result = await analyzeMenu({
-    image: needsImage ? input.image : null,
-    menuText: askNames,
-    homeCountry: input.homeCountry,
-    travelCountry: input.travelCountry,
-    party: input.party,
-    targetLanguage: lang,
-    referenceData,
-  });
+  /*
+   * 메뉴를 한 번에 다 묻지 않고 나눠서 동시에 묻는다.
+   *
+   * 한 번의 호출로 메뉴 12개를 분석하니 80초가 걸렸다. 메뉴마다 설명·맛·곁들임·
+   * 주문법·예절을 다 받아 적어야 하므로, 메뉴가 늘면 받아쓸 글자 수가 그만큼
+   * 늘고 시간도 같이 늘어난다. 6개씩 둘로 나눠 동시에 물으면 53초가 됐다.
+   *
+   * 더 잘게 쪼개면 더 빠르지만, 동시 호출이 많아지면 구글이 과부하(503)로
+   * 되돌려보낸다. 실제로 4개씩 세 갈래로 나눴을 때 재시도를 다 쓰고 실패했다.
+   * 그래서 한 번에 두 갈래까지만 보낸다.
+   */
+  const CHUNK_SIZE = 6;
+  const MAX_PARALLEL = 2;
+
+  const askChunks: string[][] = [];
+  if (unknownNames.length > 0) {
+    for (let i = 0; i < unknownNames.length; i += CHUNK_SIZE) {
+      askChunks.push(unknownNames.slice(i, i + CHUNK_SIZE));
+    }
+  }
+
+  const askOnce = (menuText: string | undefined, names?: string[]) =>
+    analyzeMenu({
+      image: needsImage ? input.image : null,
+      menuText,
+      homeCountry: input.homeCountry,
+      travelCountry: input.travelCountry,
+      party: input.party,
+      targetLanguage: lang,
+      /* 이 묶음에 든 메뉴의 근거만 보낸다. 안 물어본 메뉴의 자료까지 넣으면
+       * 프롬프트만 길어지고, 모델이 그 메뉴도 답에 끼워 넣는다. */
+      referenceData: names
+        ? Object.fromEntries(names.filter((n) => referenceData[n]).map((n) => [n, referenceData[n]]))
+        : referenceData,
+    });
+
+  let result: { dishes: any[] };
+  if (askChunks.length === 0) {
+    // 사진도 없고 아는 메뉴도 없는 '현지 추천' 경로.
+    result = await askOnce(askNames ?? undefined);
+  } else {
+    const collected: any[] = [];
+    for (let i = 0; i < askChunks.length; i += MAX_PARALLEL) {
+      const wave = askChunks.slice(i, i + MAX_PARALLEL);
+      const parts = await Promise.all(wave.map((names) => askOnce(names.join(', '), names)));
+      for (const part of parts) collected.push(...(part.dishes || []));
+    }
+    result = { dishes: collected };
+  }
 
   const dishes: Dish[] = [...cachedDishes];
   /*
@@ -645,6 +693,8 @@ export const runFreeAnalysis = async (input: RunAnalysisInput): Promise<AnalyzeM
    */
   const keyOf = (d: { original?: string | null; name?: string | null }) =>
     (d.original || d.name || '').trim().toLowerCase();
+
+  const saves: Promise<unknown>[] = [];
 
   const taken = new Set<string>();
   for (const d of cachedDishes) {
@@ -680,17 +730,33 @@ export const runFreeAnalysis = async (input: RunAnalysisInput): Promise<AnalyzeM
     enriched.standard_food_id = standardFoodId;
 
     /*
-     * 다음에 같은 메뉴를 만났을 때 이 표준 음식을 다시 찾을 수 있도록 이름을 등록한다.
-     * 이게 빠져 있으면 분석 결과를 저장해 두고도 이름으로 찾지 못해,
-     * 매번 AI 를 다시 부르게 된다.
+     * 저장은 사용자가 결과를 보는 데 필요하지 않다. 메뉴마다 순서대로 쓰면
+     * 원격 DB 왕복이 메뉴 수의 두 배만큼 줄줄이 이어져, 다 끝날 때까지 응답이
+     * 늦어진다. 그래서 할 일만 모아 두고 아래에서 한꺼번에 처리한다.
      */
-    await registerAliases(standardFoodId, [enriched.original, enriched.name, enriched.standard_food_name]);
-
-    // 저장 열쇠는 메뉴판에 적힌 이름. 같은 분류의 다른 메뉴와 칸을 나눠 쓴다.
-    await saveFoodAnalysis(standardFoodId, dishCacheKey(enriched.original || enriched.name), lang, enriched);
+    saves.push(
+      /*
+       * 다음에 같은 메뉴를 만났을 때 이 표준 음식을 다시 찾을 수 있도록 이름을 등록한다.
+       * 이게 빠져 있으면 분석 결과를 저장해 두고도 이름으로 찾지 못해,
+       * 매번 AI 를 다시 부르게 된다.
+       */
+      registerAliases(standardFoodId, [enriched.original, enriched.name, enriched.standard_food_name])
+        // 저장 열쇠는 메뉴판에 적힌 이름. 같은 분류의 다른 메뉴와 칸을 나눠 쓴다.
+        .then(() =>
+          saveFoodAnalysis(standardFoodId, dishCacheKey(enriched.original || enriched.name), lang, enriched)
+        )
+    );
 
     dishes.push(enriched);
   }
+
+  /*
+   * 저장이 하나 실패해도 이미 만들어진 결과는 보여준다. 다만 저장이 안 됐다는
+   * 사실은 남긴다 — 다음 사용자가 캐시를 못 맞히는 원인이 되기 때문이다.
+   */
+  const saveResults = await Promise.allSettled(saves);
+  const failed = saveResults.filter((r) => r.status === 'rejected').length;
+  if (failed > 0) console.warn(`[analyze] 분석 ${failed}개를 저장하지 못했습니다.`);
 
   logSearch({
     user_id: input.userId ?? null,

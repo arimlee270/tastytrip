@@ -211,6 +211,14 @@ const isOverloaded = (msg: string): boolean =>
 const isQuotaExceeded = (msg: string): boolean =>
   msg.includes('429') || msg.toLowerCase().includes('quota') || msg.includes('RESOURCE_EXHAUSTED');
 
+/*
+ * 모델은 답을 내기 전에 혼자 생각하는 데 토큰을 쓴다. 기본값으로 두면
+ * 메뉴 12개 분석에 생각 토큰 3,800개가 붙어 31초가 걸렸다. 낮추면 806개로 줄고
+ * 25초가 됐다. 결과 품질 차이는 눈에 띄지 않았다 — 이 작업은 추론이 아니라
+ * 번역과 서술이고, 영양·알레르기 판단은 모델이 아니라 공개 데이터와 코드가 한다.
+ */
+const THINKING_LOW = { thinkingLevel: 'low' as const };
+
 /**
  * 모델 호출.
  *  - 503(구글 서버 과부하)은 일시적이므로 잠시 뒤 다시 시도한다.
@@ -219,7 +227,27 @@ const isQuotaExceeded = (msg: string): boolean =>
  */
 const generate = async (contents: any[], config: any) => {
   const client = getGeminiClient();
-  const maxRetries = 3;
+  /*
+   * 재시도는 두 번까지만 한다.
+   *
+   * 예전에는 세 번 시도하며 3초, 6초를 쉬었다. 구글이 과부하 상태면 결국
+   * 9초를 버린 뒤에 실패한다. 손님은 식당에서 메뉴판을 들고 기다리는 중이고,
+   * 그 9초는 아무것도 보여주지 못하는 시간이다.
+   * 한 번 더 시도해 보고, 안 되면 가벼운 모델로 넘어가 답을 받아 오는 편이 낫다.
+   */
+  const maxRetries = 2;
+
+  const useFallback = async (why: string) => {
+    console.log(`[Gemini API] ${why} 더 가벼운 '${env.geminiFallbackModel}' 로 전환합니다.`);
+    const result = await client.models.generateContent({
+      model: env.geminiFallbackModel,
+      contents,
+      config,
+    });
+    lastUsedModel = env.geminiFallbackModel;
+    console.warn('[Gemini API] 폴백 모델로 응답했습니다. 번역 품질이 평소보다 낮을 수 있습니다.');
+    return result;
+  };
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -230,24 +258,20 @@ const generate = async (contents: any[], config: any) => {
     } catch (error: any) {
       const msg = String(error?.message || error || '');
 
-      if (isOverloaded(msg) && attempt < maxRetries) {
-        const waitMs = attempt * 3000;
-        console.warn(`[Gemini API] 서버 과부하(503). ${waitMs / 1000}초 후 재시도합니다.`);
-        await sleep(waitMs);
-        continue;
+      if (isOverloaded(msg)) {
+        if (attempt < maxRetries) {
+          console.warn('[Gemini API] 서버 과부하(503). 2초 후 재시도합니다.');
+          await sleep(2000);
+          continue;
+        }
+        /*
+         * 계속 과부하면 기다려도 나아지지 않는다. 가벼운 모델은 대기열이 짧아
+         * 이럴 때도 대개 응답한다. 빈 화면보다 낫다.
+         */
+        return useFallback('서버 과부하(503)가 이어집니다.');
       }
 
-      if (isQuotaExceeded(msg)) {
-        console.log(`[Gemini API] 할당량 초과. 더 가벼운 '${env.geminiFallbackModel}' 로 전환합니다.`);
-        const result = await client.models.generateContent({
-          model: env.geminiFallbackModel,
-          contents,
-          config,
-        });
-        lastUsedModel = env.geminiFallbackModel;
-        console.warn('[Gemini API] 폴백 모델로 응답했습니다. 번역 품질이 평소보다 낮을 수 있습니다.');
-        return result;
-      }
+      if (isQuotaExceeded(msg)) return useFallback('할당량을 초과했습니다.');
 
       console.error(`[Gemini API] 호출 실패:`, msg.slice(0, 200));
       throw error;
@@ -313,6 +337,7 @@ Instructions:
   const response = await generate(contents, {
     // 사진이 있으면 '현지 추천' 으로 빠지지 않도록 더 엄격한 지시를 준다.
     systemInstruction: buildSystemInstruction(targetLangName, hasImage),
+    thinkingConfig: THINKING_LOW,
     temperature: 0.2,
     responseMimeType: 'application/json',
     responseSchema: RESPONSE_SCHEMA,
@@ -388,6 +413,7 @@ export const readFoodPhoto = async (image: string): Promise<PhotoReading> => {
       '3. Never guess from the restaurant type, the country, the photo style, or your own knowledge.\n' +
       '4. Reporting fewer items than are present is acceptable. ' +
       'Reporting something that is not there is a serious error.',
+    thinkingConfig: THINKING_LOW,
     temperature: 0,
     responseMimeType: 'application/json',
     responseSchema: {
