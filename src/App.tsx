@@ -424,7 +424,7 @@ function AppShell() {
 
   return (
     <div className="min-h-[100dvh] bg-[#191514] text-ink font-sans flex items-center justify-center p-0 md:p-6 select-none overflow-x-hidden">
-      <div className="phone w-full max-w-[390px] h-[100dvh] md:h-[844px] md:rounded-[38px] bg-bg-trip border-0 md:border-8 border-neutral-900 relative flex flex-col overflow-hidden shadow-2xl">
+      <div className="phone w-full md:max-w-[390px] h-[100dvh] md:h-[844px] md:rounded-[38px] bg-bg-trip border-0 md:border-8 border-neutral-900 relative flex flex-col overflow-hidden shadow-2xl">
         {/* 인트로 — 준비가 끝나면 스스로 사라진다 */}
         <AnimatePresence>
           {showIntro && <IntroScreen key="intro" onDone={() => setShowIntro(false)} />}

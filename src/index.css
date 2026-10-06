@@ -19,6 +19,11 @@
   --color-danger-trip: #d83b2f;
 }
 
+/* 폰 브라우저가 상태바·주소창 자리를 문서 배경색으로 칠하므로 앱 배경과 맞춘다 */
+body {
+  background: var(--color-bg-trip);
+}
+
 /* Custom premium styling touch-ups */
 ::-webkit-scrollbar {
   width: 6px;
